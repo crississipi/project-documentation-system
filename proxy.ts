@@ -1,55 +1,101 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "fallback-secret-change-in-production"
-);
+// ─── Routes that require authentication ──────────────────────────────────────
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/projects",
+  "/documentation",
+  "/invite",
+  "/api/projects",
+  "/api/profile",
+  "/api/settings",
+  "/api/admin",
+];
 
-// Routes that require authentication
-const PROTECTED_ROUTES = ["/dashboard", "/projects", "/documentation", "/invite"];
-// Routes only accessible when NOT logged in
-const AUTH_ROUTES = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password"];
+// ─── Routes that authenticated users shouldn't revisit ───────────────────────
+const AUTH_ONLY_PATHS = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
+
+// ─── Public API routes (no auth needed) ──────────────────────────────────────
+const PUBLIC_API_PREFIXES = [
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/logout",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/verify-email",
+  "/api/auth/resend-verification",
+  "/api/auth/2fa",
+];
+
+function isProtected(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+function isAuthOnly(pathname: string): boolean {
+  return AUTH_ONLY_PATHS.some((p) => pathname.startsWith(p));
+}
+
+function isPublicApi(pathname: string): boolean {
+  return PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("auth_token")?.value;
 
-  const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
-  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
+  // ── Never block static assets or Next internals ──────────────────────
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|webp|gif|woff2?)$/)
+  ) {
+    return NextResponse.next();
+  }
 
-  // Verify token validity
-  let isValidToken = false;
+  // ── Public API routes bypass auth check entirely ──────────────────────
+  if (isPublicApi(pathname)) {
+    return NextResponse.next();
+  }
+
+  const token = request.cookies.get("auth_token")?.value ?? null;
+  let isAuthenticated = false;
+
   if (token) {
     try {
-      await jwtVerify(token, JWT_SECRET);
-      isValidToken = true;
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
+      await jwtVerify(token, secret);
+      isAuthenticated = true;
     } catch {
-      isValidToken = false;
+      // Token invalid / expired — treat as unauthenticated
+      isAuthenticated = false;
     }
   }
 
-  // Redirect unauthenticated users away from protected routes
-  if (isProtected && !isValidToken) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
+  // ── Unauthenticated user hitting a protected route ────────────────────
+  if (isProtected(pathname) && !isAuthenticated) {
+    // For API routes return 401 JSON instead of redirect
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users away from auth routes
-  if (isAuthRoute && isValidToken) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  // ── Authenticated user hitting login/signup — redirect to dashboard ───
+  if (isAuthOnly(pathname) && isAuthenticated) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
 }
 
-export { proxy as middleware };
-
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|logo.png|api/).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
