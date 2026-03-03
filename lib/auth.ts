@@ -67,7 +67,9 @@ export async function setAuthCookie(token: string): Promise<void> {
   cookieStore.set("auth_token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    // SameSite=None is required for cross-origin requests (Hostinger → Vercel).
+    // Must be "none" + secure:true in production; "lax" in local dev.
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: parseInt(ACCESS_EXPIRES),
     path: "/",
   });
@@ -79,7 +81,7 @@ export async function clearAuthCookie(): Promise<void> {
   cookieStore.set("auth_token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 0,
     path: "/",
   });

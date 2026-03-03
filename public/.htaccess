@@ -1,0 +1,24 @@
+# Hostinger Apache rewrite rules for Next.js static export (SPA-style routing).
+# Place this file in the root of your Hostinger public_html directory
+# alongside the exported files from the Next.js `out/` directory.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Serve existing files and directories directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Route dynamic project pages to the placeholder shell (client reads real ID via useParams)
+  # Matches /projects/<id> but NOT /projects/ itself (the projects list)
+  RewriteRule ^projects/([^/]+)(/.*)?$ /projects/_/index.html [L]
+
+  # Route dynamic invite pages to the placeholder shell
+  RewriteRule ^invite/([^/]+)(/.*)?$ /invite/_/index.html [L]
+
+  # All other unmatched paths fall back to root
+  RewriteRule ^ /index.html [L]
+</IfModule>
+

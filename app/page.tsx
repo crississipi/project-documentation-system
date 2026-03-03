@@ -1,23 +1,17 @@
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
+"use client";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "fallback-secret-change-in-production"
-);
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/context/AuthContext";
 
-export default async function RootPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
+export default function RootPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-  if (token) {
-    try {
-      await jwtVerify(token, JWT_SECRET);
-      redirect("/dashboard");
-    } catch {
-      // invalid token, fall through to login
-    }
-  }
+  useEffect(() => {
+    if (loading) return;
+    router.replace(user ? "/dashboard" : "/login");
+  }, [user, loading, router]);
 
-  redirect("/login");
+  return null;
 }

@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = new Set([
+  "https://lightyellow-newt-377914.hostingersite.com",
+  // Uncomment for local dev testing of cross-origin scenarios:
+  "http://localhost:3000",
+]);
+
+function buildCorsHeaders(origin: string): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Cookie",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
 // ─── Routes that require authentication ──────────────────────────────────────
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -48,8 +66,16 @@ function isPublicApi(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const origin = request.headers.get("origin");
+  const corsHeaders =
+    origin && ALLOWED_ORIGINS.has(origin) ? buildCorsHeaders(origin) : {};
 
-  // ── Never block static assets or Next internals ──────────────────────
+  // ── OPTIONS preflight — respond immediately with CORS headers ─────────
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, { status: 204, headers: corsHeaders });
+  }
+
+  // ── Never block static assets or Next internals ───────────────────────
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
@@ -60,7 +86,9 @@ export async function proxy(request: NextRequest) {
 
   // ── Public API routes bypass auth check entirely ──────────────────────
   if (isPublicApi(pathname)) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    Object.entries(corsHeaders).forEach(([k, v]) => res.headers.set(k, v));
+    return res;
   }
 
   const token = request.cookies.get("auth_token")?.value ?? null;
@@ -81,19 +109,29 @@ export async function proxy(request: NextRequest) {
   if (isProtected(pathname) && !isAuthenticated) {
     // For API routes return 401 JSON instead of redirect
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401, headers: corsHeaders },
+      );
     }
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+    const redirectRes = NextResponse.redirect(loginUrl);
+    Object.entries(corsHeaders).forEach(([k, v]) => redirectRes.headers.set(k, v));
+    return redirectRes;
   }
 
   // ── Authenticated user hitting login/signup — redirect to dashboard ───
   if (isAuthOnly(pathname) && isAuthenticated) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const redirectRes = NextResponse.redirect(new URL("/dashboard", request.url));
+    Object.entries(corsHeaders).forEach(([k, v]) => redirectRes.headers.set(k, v));
+    return redirectRes;
   }
 
-  return NextResponse.next();
+  // ── Pass through with CORS headers attached ───────────────────────────
+  const res = NextResponse.next();
+  Object.entries(corsHeaders).forEach(([k, v]) => res.headers.set(k, v));
+  return res;
 }
 
 export const config = {

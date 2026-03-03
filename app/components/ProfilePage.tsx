@@ -8,6 +8,7 @@ import {
 } from "react-icons/bi";
 import { useAuth } from "@/app/context/AuthContext";
 import { useToast } from "@/app/components/ui/Toast";
+import { apiFetch } from "@/lib/apiFetch";
 import { formatDate } from "@/lib/utils";
 import type { UserProfile } from "@/types";
 
@@ -105,7 +106,7 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/api/profile");
+      const res  = await apiFetch("/api/profile");
       const json = await res.json();
       if (res.ok && json.data) {
         const p: UserProfile = json.data;
@@ -147,7 +148,7 @@ export default function ProfilePage() {
     if (!dirty) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/profile", {
+      const res = await apiFetch("/api/profile", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name, phone, bio, jobTitle, company, website, location, avatarUrl }),

@@ -8,6 +8,7 @@ import { forgotPasswordSchema } from "@/lib/validations";
 import { Input } from "@/app/components/ui/Input";
 import { Button } from "@/app/components/ui/Button";
 import { useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { z } from "zod";
 
 type FormData = z.infer<typeof forgotPasswordSchema>;
@@ -24,7 +25,7 @@ export function ForgotPasswordForm() {
 
   const onSubmit = async (data: FormData) => {
     setServerError("");
-    const res = await fetch("/api/auth/forgot-password", {
+    const res = await apiFetch("/api/auth/forgot-password", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(data),

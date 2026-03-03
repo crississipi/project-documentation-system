@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/Button";
+import { apiFetch } from "@/lib/apiFetch";
 
 const PIN_LENGTH = 6;
 
@@ -72,7 +73,7 @@ export function VerifyEmailPage() {
     setStatus("loading");
     setMessage("");
 
-    const res = await fetch("/api/auth/verify-email", {
+    const res = await apiFetch("/api/auth/verify-email", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token: pin }),

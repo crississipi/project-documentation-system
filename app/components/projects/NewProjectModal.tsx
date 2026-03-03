@@ -8,6 +8,7 @@ import { createProjectSchema } from "@/lib/validations";
 import { Modal } from "@/app/components/ui/Modal";
 import { Input } from "@/app/components/ui/Input";
 import { Select } from "@/app/components/ui/Select";
+import { apiFetch } from "@/lib/apiFetch";
 import { Button } from "@/app/components/ui/Button";
 import type { ProjectSummary } from "@/types";
 
@@ -71,7 +72,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
 
   const onSubmit = async (data: FormValues) => {
     setServerError("");
-    const res = await fetch("/api/projects", {
+    const res = await apiFetch("/api/projects", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

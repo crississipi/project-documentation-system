@@ -10,6 +10,7 @@ import { Input } from "@/app/components/ui/Input";
 import { Button } from "@/app/components/ui/Button";
 import type { SignupFormData } from "@/types";
 import { useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 
 export function SignupForm() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export function SignupForm() {
   const onSubmit = async (data: SignupFormData) => {
     setServerError("");
     setConflictEmail("");
-    const res = await fetch("/api/auth/register", {
+    const res = await apiFetch("/api/auth/register", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(data),

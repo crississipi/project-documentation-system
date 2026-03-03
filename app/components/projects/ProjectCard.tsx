@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { BiTrash, BiEditAlt, BiLock, BiGlobe } from "react-icons/bi";
 import type { ProjectSummary } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface ProjectCardProps {
   project: ProjectSummary;
@@ -28,7 +29,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm(`Delete "${project.title}"? This cannot be undone.`)) return;
-    const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/projects/${project.id}`, { method: "DELETE" });
     if (res.ok) onDelete(project.id);
   };
 

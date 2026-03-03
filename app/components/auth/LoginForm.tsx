@@ -12,6 +12,7 @@ import { Button } from "@/app/components/ui/Button";
 import TwoFactorModal from "@/app/components/auth/TwoFactorModal";
 import type { LoginFormData } from "@/types";
 import { useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 
 const UNVERIFIED_MSG = "verify your email";
 
@@ -55,7 +56,7 @@ export function LoginForm() {
   const handleResend = async () => {
     if (!resendEmail || resendStatus === "sending") return;
     setResendStatus("sending");
-    await fetch("/api/auth/resend-verification", {
+    await apiFetch("/api/auth/resend-verification", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: resendEmail }),

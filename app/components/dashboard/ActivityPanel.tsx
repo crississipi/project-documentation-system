@@ -6,6 +6,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, Area, AreaChart,
 } from "recharts";
 import { BiCalendar, BiTime, BiEditAlt, BiText, BiTrendingUp } from "react-icons/bi";
+import { apiFetch } from "@/lib/apiFetch";
 
 type Range = "yesterday" | "week" | "month" | "custom";
 
@@ -72,7 +73,7 @@ export function ActivityPanel() {
     setLoading(true);
     let url = `/api/dashboard/activity?range=${range}`;
     if (range === "custom") url += `&from=${from}&to=${to}`;
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     const json = await res.json();
     if (json.success) setData(json.data);
     setLoading(false);

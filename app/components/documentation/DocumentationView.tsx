@@ -12,6 +12,7 @@ import { ShareModal } from "./ShareModal";
 import { Button } from "@/app/components/ui/Button";
 import type { DocumentationPageData, SectionWithBlocks, PaperSize } from "@/types";
 import { cn } from "@/lib/cn";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface DocumentationViewProps {
   data: DocumentationPageData;
@@ -46,7 +47,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
 
     await Promise.all(
       Array.from(pending.entries()).map(([sectionId, html]) =>
-        fetch(`/api/projects/${project.id}/sections/${sectionId}/content`, {
+        apiFetch(`/api/projects/${project.id}/sections/${sectionId}/content`, {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -78,7 +79,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
 
   // ─── Section CRUD ──────────────────────────────
   const createSection = async (title: string) => {
-    const res = await fetch(`/api/projects/${project.id}/sections`, {
+    const res = await apiFetch(`/api/projects/${project.id}/sections`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ title }),
@@ -92,7 +93,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
   };
 
   const deleteSection = async (id: string) => {
-    const res = await fetch(`/api/projects/${project.id}/sections/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/projects/${project.id}/sections/${id}`, { method: "DELETE" });
     if (res.ok) {
       setSections((prev) => {
         const next = prev.filter((s) => s.id !== id);
@@ -103,7 +104,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
   };
 
   const renameSection = async (id: string, title: string) => {
-    const res = await fetch(`/api/projects/${project.id}/sections/${id}`, {
+    const res = await apiFetch(`/api/projects/${project.id}/sections/${id}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ title }),
@@ -128,12 +129,12 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
 
     // Persist both reordered sections
     await Promise.all([
-      fetch(`/api/projects/${project.id}/sections/${next[index].id}`, {
+      apiFetch(`/api/projects/${project.id}/sections/${next[index].id}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ orderIndex: index }),
       }),
-      fetch(`/api/projects/${project.id}/sections/${next[swapIndex].id}`, {
+      apiFetch(`/api/projects/${project.id}/sections/${next[swapIndex].id}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ orderIndex: swapIndex }),
@@ -143,7 +144,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
 
   const changePaperSize = async (size: PaperSize) => {
     setPaperSize(size);
-    await fetch(`/api/projects/${project.id}`, {
+    await apiFetch(`/api/projects/${project.id}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ paperSize: size }),

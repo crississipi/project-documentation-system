@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BiShield, BiX, BiEnvelope, BiLock } from "react-icons/bi";
+import { apiFetch } from "@/lib/apiFetch";
 
 // ── 2FA Modal: used in two scenarios ──────────────────────────────────────────
 // 1. Login flow:   show when login returns { requiresOtp: true, preAuthToken }
@@ -82,7 +83,7 @@ export default function TwoFactorModal({
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/2fa/verify-otp", {
+      const res = await apiFetch("/api/auth/2fa/verify-otp", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -109,7 +110,7 @@ export default function TwoFactorModal({
   const handleResend = async () => {
     setError("");
     try {
-      const res = await fetch("/api/auth/2fa/send-otp", {
+      const res = await apiFetch("/api/auth/2fa/send-otp", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(preAuthToken ? { preAuthToken } : {}),

@@ -8,6 +8,7 @@ import { Button } from "@/app/components/ui/Button";
 import { ActivityPanel } from "@/app/components/dashboard/ActivityPanel";
 import { formatDate, getGreeting } from "@/lib/utils";
 import type { ProjectSummary } from "@/types";
+import { apiFetch } from "@/lib/apiFetch";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -16,7 +17,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/projects")
+    apiFetch("/api/projects")
       .then((r) => r.json())
       .then((j) => { if (j.success) setProjects(j.data ?? []); })
       .finally(() => setLoading(false));

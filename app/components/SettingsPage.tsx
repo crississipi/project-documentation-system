@@ -8,6 +8,7 @@ import {
   BiFile, BiLockOpen, BiTimeFive, BiCalendar,
 } from "react-icons/bi";
 import { useAuth } from "@/app/context/AuthContext";
+import { apiFetch } from "@/lib/apiFetch";
 import { useTheme } from "@/app/context/ThemeContext";
 import { useToast } from "@/app/components/ui/Toast";
 import TwoFactorModal from "@/app/components/auth/TwoFactorModal";
@@ -128,7 +129,7 @@ export default function SettingsPage() {
   const fetchPrefs = async () => {
     setPrefsLoading(true);
     try {
-      const res  = await fetch("/api/settings");
+      const res  = await apiFetch("/api/settings");
       const json = await res.json();
       if (res.ok && json.data) {
         setPrefs(json.data);
@@ -159,7 +160,7 @@ export default function SettingsPage() {
     if (!prefsDirty) return;
     setPrefsSaving(true);
     try {
-      const res = await fetch("/api/settings", {
+      const res = await apiFetch("/api/settings", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(prefs),
@@ -191,7 +192,7 @@ export default function SettingsPage() {
     }
     setPwSaving(true);
     try {
-      const res = await fetch("/api/profile/password", {
+      const res = await apiFetch("/api/profile/password", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
@@ -232,7 +233,7 @@ export default function SettingsPage() {
   const startEnable2FA = async () => {
     setEnabling2FA(true);
     try {
-      const res = await fetch("/api/auth/2fa/send-otp", {
+      const res = await apiFetch("/api/auth/2fa/send-otp", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
@@ -254,7 +255,7 @@ export default function SettingsPage() {
     if (!disablePw) { showToast("Enter your password to confirm", "error"); return; }
     setDisabling2FA(true);
     try {
-      const res = await fetch("/api/auth/2fa/disable", {
+      const res = await apiFetch("/api/auth/2fa/disable", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ password: disablePw }),

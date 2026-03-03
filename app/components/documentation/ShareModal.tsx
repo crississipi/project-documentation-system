@@ -10,6 +10,7 @@ import {
   BiUserPlus,
 } from "react-icons/bi";
 import type { CollaboratorRole, ProjectCollaboratorData } from "@/types";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface ShareModalProps {
   projectId: string;
@@ -38,7 +39,7 @@ export function ShareModal({ projectId, projectTitle, onClose }: ShareModalProps
   }, []);
 
   const loadCollaborators = async () => {
-    const res = await fetch(`/api/projects/${projectId}/collaborators`);
+    const res = await apiFetch(`/api/projects/${projectId}/collaborators`);
     const json = await res.json();
     if (res.ok) setCollaborators(json.data ?? []);
   };
@@ -55,7 +56,7 @@ export function ShareModal({ projectId, projectTitle, onClose }: ShareModalProps
     setSuccess("");
     setInviting(true);
 
-    const res = await fetch(`/api/projects/${projectId}/collaborators`, {
+    const res = await apiFetch(`/api/projects/${projectId}/collaborators`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, role }),
@@ -73,14 +74,14 @@ export function ShareModal({ projectId, projectTitle, onClose }: ShareModalProps
   };
 
   const removeCollaborator = async (colId: string) => {
-    const res = await fetch(`/api/projects/${projectId}/collaborators/${colId}`, {
+    const res = await apiFetch(`/api/projects/${projectId}/collaborators/${colId}`, {
       method: "DELETE",
     });
     if (res.ok) setCollaborators((prev) => prev.filter((c) => c.id !== colId));
   };
 
   const changeRole = async (colId: string, newRole: CollaboratorRole) => {
-    const res = await fetch(`/api/projects/${projectId}/collaborators/${colId}`, {
+    const res = await apiFetch(`/api/projects/${projectId}/collaborators/${colId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ role: newRole }),

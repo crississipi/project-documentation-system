@@ -8,6 +8,7 @@ import {
 } from "react-icons/bi";
 import { ProjectCard } from "@/app/components/projects/ProjectCard";
 import { NewProjectModal } from "@/app/components/projects/NewProjectModal";
+import { apiFetch } from "@/lib/apiFetch";
 import { Button } from "@/app/components/ui/Button";
 import type { ProjectSummary } from "@/types";
 
@@ -75,7 +76,7 @@ export default function Projects() {
     setLoading(true);
     setError("");
     try {
-      const res  = await fetch("/api/projects");
+      const res  = await apiFetch("/api/projects");
       const json = await res.json();
       if (res.ok) setProjects(json.data ?? []);
       else        setError(json.error ?? "Failed to load projects");

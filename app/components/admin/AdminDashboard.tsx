@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/app/components/ui/Toast";
 import { formatDate } from "@/lib/utils";
 import type { UserRole } from "@/types";
+import { apiFetch } from "@/lib/apiFetch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ export default function AdminDashboard() {
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const res = await fetch("/api/admin/stats");
+      const res = await apiFetch("/api/admin/stats");
       if (res.ok) {
         const json = await res.json();
         setStats(json.data);
@@ -143,7 +144,7 @@ export default function AdminDashboard() {
     setUsersLoading(true);
     try {
       const params = new URLSearchParams({ search: q, page: String(p), limit: "15" });
-      const res = await fetch(`/api/admin/users?${params}`);
+      const res = await apiFetch(`/api/admin/users?${params}`);
       if (res.ok) {
         const json = await res.json();
         setUsers(json.data.users);
@@ -169,7 +170,7 @@ export default function AdminDashboard() {
   const handleRoleChange = async (user: AdminUser, newRole: "USER" | "ADMIN") => {
     setPromotingId(user.id);
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await apiFetch("/api/admin/users", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ userId: user.id, role: newRole }),
