@@ -1,0 +1,204 @@
+// OnTap Dev Documentation - Prisma Schema
+// MySQL hosted on Hostinger
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// USER & AUTH
+// ─────────────────────────────────────────────
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  name              String
+  password          String    // bcrypt hashed
+  isEmailVerified   Boolean   @default(false)
+  verificationToken String?   @unique
+  verificationTokenExpiry DateTime?
+  resetToken        String?   @unique
+  resetTokenExpiry  DateTime?
+  avatarUrl         String?   @db.LongText
+  bio               String?   @db.Text
+  phone             String?
+  jobTitle          String?
+  company           String?
+  website           String?
+  location          String?
+  preferences        Json?
+  role               UserRole  @default(USER)
+  twoFactorEnabled   Boolean   @default(false)
+  otpCode            String?
+  otpCodeExpiry      DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  projects           Project[]
+  sessions           Session[]
+  collaborations     ProjectCollaborator[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ─────────────────────────────────────────────
+// PROJECTS
+// ─────────────────────────────────────────────
+
+model Project {
+  id                String             @id @default(uuid())
+  title             String
+  description       String?            @db.Text
+  category          String
+  tags              String?            @db.Text  // JSON array stored as string
+  visibility        ProjectVisibility  @default(PRIVATE)
+  docType           String             @default("Technical Documentation")
+  paperSize         PaperSize          @default(A4)
+  authorId          String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  coverImageUrl     String?
+  versionNumber     Int                @default(1)
+
+  author            User               @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  sections          Section[]
+  tableOfContents   TableOfContents?
+  collaborators     ProjectCollaborator[]
+
+  @@index([authorId])
+  @@index([visibility])
+}
+
+enum ProjectVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum PaperSize {
+  A4
+  LEGAL
+  LONG
+}
+
+// ─────────────────────────────────────────────
+// TABLE OF CONTENTS
+// ─────────────────────────────────────────────
+
+model TableOfContents {
+  id        String   @id @default(uuid())
+  projectId String   @unique
+  updatedAt DateTime @updatedAt
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// SECTIONS
+// ─────────────────────────────────────────────
+
+model Section {
+  id          String            @id @default(uuid())
+  projectId   String
+  title       String
+  orderIndex  Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  blocks      ContentBlock[]
+
+  @@index([projectId])
+  @@index([orderIndex])
+}
+
+// ─────────────────────────────────────────────
+// CONTENT BLOCKS
+// ─────────────────────────────────────────────
+
+model ContentBlock {
+  id         String        @id @default(uuid())
+  sectionId  String
+  type       BlockType     @default(TEXT)
+  content    String        @db.LongText  // HTML or code string
+  language   String?       // programming language for code blocks
+  orderIndex Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  section    Section       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+  @@index([orderIndex])
+}
+
+enum BlockType {
+  TEXT
+  CODE
+  IMAGE
+  TABLE
+  DIVIDER
+}
+
+// ─────────────────────────────────────────────
+// COLLABORATORS
+// ─────────────────────────────────────────────
+
+model ProjectCollaborator {
+  id                String              @id @default(uuid())
+  projectId         String
+  invitedEmail      String
+  invitedName       String?
+  userId            String?
+  role              CollaboratorRole    @default(VIEWER)
+  status            CollaboratorStatus  @default(PENDING)
+  inviteToken       String              @unique
+  inviteTokenExpiry DateTime
+  hasEdited         Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  project           Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, invitedEmail])
+  @@index([projectId])
+  @@index([inviteToken])
+  @@index([userId])
+}
+
+enum CollaboratorRole {
+  VIEWER
+  COMMENTER
+  EDITOR
+}
+
+enum CollaboratorStatus {
+  PENDING
+  ACCEPTED
+}
