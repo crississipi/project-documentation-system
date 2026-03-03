@@ -1,18 +1,24 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
+const isStaticExport = process.env.STATIC_EXPORT === "true";
+const VERCEL_URL = "https://project-documentation-system.vercel.app";
+const HOSTINGER_URL = "https://lightyellow-newt-377914.hostingersite.com";
 
 // Content-Security-Policy — tightened per OWASP recommendations.
-// In development we allow 'unsafe-eval' and 'unsafe-inline' so Next.js HMR works.
+// Next.js App Router injects inline scripts for hydration on every page, so
+// 'unsafe-inline' is required in production too. In dev we also allow
+// 'unsafe-eval' for HMR / fast-refresh.
 const CSP = [
   "default-src 'self'",
   isDev
     ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'"
-    : "script-src 'self'",
+    : "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self'",
+  // Allow API calls to Vercel when running from Hostinger static build
+  `connect-src 'self' ${VERCEL_URL} ${HOSTINGER_URL}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -52,15 +58,29 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "bcryptjs", "nodemailer"],
 
-  async headers() {
-    return [
-      {
-        // Apply to every route
-        source: "/(.*)",
-        headers: securityHeaders,
-      },
-    ];
-  },
+  // Static export for Hostinger deployment.
+  // Build normally for Vercel (prisma + API routes require server).
+  // Run: set STATIC_EXPORT=true&& bun run build  (Windows)
+  // Or:  STATIC_EXPORT=true bun run build         (Unix)
+  ...(isStaticExport && {
+    output: "export",
+    trailingSlash: true,
+    images: { unoptimized: true },
+  }),
+
+  // headers() is not supported in static export mode (output: "export").
+  // When building for Hostinger, security headers are handled by .htaccess instead.
+  ...(!isStaticExport && {
+    async headers() {
+      return [
+        {
+          source: "/(.*)",
+          headers: securityHeaders,
+        },
+      ];
+    },
+  }),
 };
 
 export default nextConfig;
+
