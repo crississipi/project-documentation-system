@@ -20,6 +20,7 @@ let moved = false;
 function restore() {
   if (moved && fs.existsSync(API_TEMP)) {
     fs.renameSync(API_TEMP, API_DIR);
+    moved = false;
     console.log("✓ Restored app/api");
   }
 }
@@ -30,6 +31,13 @@ process.on("SIGINT", () => process.exit(130));
 process.on("SIGTERM", () => process.exit(143));
 
 try {
+  // ── Self-healing: if a previous build was interrupted, restore first ──────
+  if (fs.existsSync(API_TEMP) && !fs.existsSync(API_DIR)) {
+    console.log("⚠ Detected leftover _api_static_backup from a previous interrupted build.");
+    fs.renameSync(API_TEMP, API_DIR);
+    console.log("✓ Auto-restored app/api before starting.");
+  }
+
   if (fs.existsSync(API_DIR)) {
     fs.renameSync(API_DIR, API_TEMP);
     moved = true;
@@ -49,11 +57,9 @@ try {
   });
 
   restore();
-  moved = false;
   console.log("\n✓ Static export complete — output is in the out/ directory");
 } catch (err) {
   restore();
-  moved = false;
   console.error("\n✗ Static build failed");
   process.exit(1);
 }
