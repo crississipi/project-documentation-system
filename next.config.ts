@@ -73,9 +73,22 @@ const nextConfig: NextConfig = {
   ...(!isStaticExport && {
     async headers() {
       return [
+        // ── Security headers on all routes ──────────────────────────────
         {
           source: "/(.*)",
           headers: securityHeaders,
+        },
+        // ── CORS for API routes ──────────────────────────────────────────
+        // Required so that the Hostinger static-export frontend can make
+        // credentialed cross-origin requests to the Vercel API.
+        {
+          source: "/api/:path*",
+          headers: [
+            { key: "Access-Control-Allow-Origin",      value: HOSTINGER_URL },
+            { key: "Access-Control-Allow-Credentials", value: "true" },
+            { key: "Access-Control-Allow-Methods",     value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
+            { key: "Access-Control-Allow-Headers",     value: "Content-Type, Authorization, Cookie" },
+          ],
         },
       ];
     },

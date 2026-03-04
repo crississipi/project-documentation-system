@@ -1,21 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { DocumentationView } from "@/app/components/documentation/DocumentationView";
 import { apiFetch } from "@/lib/apiFetch";
 import type { DocumentationPageData, ProjectCollaboratorData, CoAuthor } from "@/types";
 
-export default function ProjectPage() {
+/**
+ * Reliably extract the project id from the current URL.
+ *
+ * When Next.js serves the static shell built for the placeholder `_` param,
+ * `useParams()` may return `{ id: "_" }` before the client router syncs with
+ * the real URL path. `usePathname()` always reflects the actual browser URL
+ * (e.g. /projects/abc-123), so we use it as the authoritative source and
+ * fall back to `useParams()` only when no better value is available.
+ */
+function useProjectId(): string | null {
   const params = useParams<{ id: string }>();
-  const id = params?.id;
+  const pathname = usePathname();
+
+  // Extract from pathname: /projects/<id>
+  const segments = (pathname ?? "").split("/").filter(Boolean);
+  const fromPath = segments[0] === "projects" ? (segments[1] ?? null) : null;
+
+  if (fromPath && fromPath !== "_") return fromPath;
+  if (params?.id && params.id !== "_") return params.id;
+  return fromPath ?? params?.id ?? null;
+}
+
+export default function ProjectPage() {
+  const id = useProjectId();
   const router = useRouter();
   const [data, setData] = useState<DocumentationPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || id === "_") return;
+
+    // Reset state on every new id so stale errors don't linger
+    setLoading(true);
+    setError(null);
+    setData(null);
 
     async function load() {
       try {

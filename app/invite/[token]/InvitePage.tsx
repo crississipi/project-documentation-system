@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { BiCheckCircle, BiErrorCircle, BiLoaderAlt, BiLogIn } from "react-icons/bi";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
@@ -23,7 +23,17 @@ interface InviteInfo {
 
 export default function InvitePage() {
   const params = useParams<{ token: string }>();
-  const token = params?.token ?? "";
+  const pathname = usePathname();
+
+  // Extract real token from the URL path (/invite/<token>) — same pattern as
+  // ProjectPage: useParams() may return the static placeholder "_" before the
+  // client router syncs to the actual browser URL.
+  const segments = (pathname ?? "").split("/").filter(Boolean);
+  const fromPath = segments[0] === "invite" ? (segments[1] ?? "") : "";
+  const token = (fromPath && fromPath !== "_") ? fromPath
+    : (params?.token && params.token !== "_") ? params.token
+    : fromPath ?? params?.token ?? "";
+
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [info, setInfo] = useState<InviteInfo | null>(null);
