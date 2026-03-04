@@ -1,10 +1,12 @@
 /**
  * Static export build script.
  *
- * Next.js `output: "export"` cannot coexist with API route handlers in the
- * same project — it tries to statically pre-render them and fails.
- * This script temporarily moves `app/api` out of the way, runs the static
- * build, then always restores the directory (even on build failure).
+ * Next.js `output: "export"` cannot coexist with:
+ *   - API route handlers  (app/api)
+ *   - Dynamic routes that can't be pre-rendered  (app/shared/[token])
+ *
+ * This script temporarily moves those directories out of the way, runs the
+ * static build, then always restores them (even on build failure).
  */
 
 const fs = require("fs");
@@ -12,39 +14,50 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const API_DIR = path.join(ROOT, "app", "api");
-const API_TEMP = path.join(ROOT, "_api_static_backup");
 
-let moved = false;
+// Each entry: { src: path inside app/, backup: top-level backup folder name }
+const MOVES = [
+  { src: path.join(ROOT, "app", "api"),           backup: path.join(ROOT, "_api_static_backup") },
+  { src: path.join(ROOT, "app", "shared"),        backup: path.join(ROOT, "_shared_static_backup") },
+];
+
+let moved = [];
 
 function restore() {
-  if (moved && fs.existsSync(API_TEMP)) {
-    fs.renameSync(API_TEMP, API_DIR);
-    moved = false;
-    console.log("✓ Restored app/api");
+  for (const { src, backup } of moved) {
+    if (fs.existsSync(backup)) {
+      fs.renameSync(backup, src);
+      console.log(`✓ Restored ${path.relative(ROOT, src)}`);
+    }
   }
+  moved = [];
 }
 
 // Always restore on process exit (covers Ctrl+C, errors, etc.)
 process.on("exit", restore);
-process.on("SIGINT", () => process.exit(130));
+process.on("SIGINT",  () => process.exit(130));
 process.on("SIGTERM", () => process.exit(143));
 
 try {
-  // ── Self-healing: if a previous build was interrupted, restore first ──────
-  if (fs.existsSync(API_TEMP) && !fs.existsSync(API_DIR)) {
-    console.log("⚠ Detected leftover _api_static_backup from a previous interrupted build.");
-    fs.renameSync(API_TEMP, API_DIR);
-    console.log("✓ Auto-restored app/api before starting.");
+  // ── Self-healing: restore any leftover backups from a prior interrupted build
+  for (const { src, backup } of MOVES) {
+    if (fs.existsSync(backup) && !fs.existsSync(src)) {
+      console.log(`⚠ Detected leftover ${path.basename(backup)} — auto-restoring before build.`);
+      fs.renameSync(backup, src);
+      console.log(`✓ Restored ${path.relative(ROOT, src)}`);
+    }
   }
 
-  if (fs.existsSync(API_DIR)) {
-    fs.renameSync(API_DIR, API_TEMP);
-    moved = true;
-    console.log("→ Moved app/api aside for static export build");
+  // ── Move incompatible directories aside ──────────────────────────────────
+  for (const { src, backup } of MOVES) {
+    if (fs.existsSync(src)) {
+      fs.renameSync(src, backup);
+      moved.push({ src, backup });
+      console.log(`→ Moved ${path.relative(ROOT, src)} aside for static export build`);
+    }
   }
 
-  // Clear .next so TypeScript type validator doesn't reference moved API routes
+  // ── Clear .next so the TypeScript validator doesn't reference moved routes
   const dotNext = path.join(ROOT, ".next");
   if (fs.existsSync(dotNext)) {
     fs.rmSync(dotNext, { recursive: true, force: true });
