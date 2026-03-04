@@ -360,28 +360,132 @@ curl -X POST \
 
 ### Node.js sync script
 
+This example walks the **entire project root**, ignoring generated and
+third-party directories, only including source files, and automatically
+masking `.env` values before they leave your machine.
+
 ```js
 // sync-docs.mjs
 import { readFileSync, readdirSync } from "fs";
-import { execSync } from "child_process";
+import { execSync }                  from "child_process";
+import { join, relative, extname, basename } from "path";
 
 const API_KEY    = process.env.ONTAP_API_KEY;
 const PROJECT_ID = process.env.ONTAP_PROJECT_ID;
 const API_BASE   = "https://project-documentation-system.vercel.app";
+const ROOT       = process.cwd(); // project root
 
-const files = readdirSync("src", { recursive: true, withFileTypes: true })
-  .filter((e) => e.isFile() && /\.(ts|tsx|js|jsx)$/.test(e.name))
-  .map((e) => {
-    const filePath = `src/${e.name}`;
-    const content  = readFileSync(filePath, "utf-8");
-    return { filePath, content };
-  });
+// ── Directories to skip entirely ─────────────────────────────────────────────
+const IGNORE_DIRS = new Set([
+  // JavaScript / Node
+  "node_modules", ".npm", ".yarn", ".pnp",
+  // Build outputs
+  ".next", ".nuxt", ".svelte-kit", "dist", "build", "out", ".output",
+  // Test / coverage
+  "coverage", ".nyc_output",
+  // Cache & tooling
+  ".turbo", ".cache", ".parcel-cache", ".vite", ".rollup.cache",
+  // Python
+  "__pycache__", "venv", ".venv", ".tox", ".mypy_cache", ".pytest_cache",
+  // Go / Java / .NET / C++
+  "vendor", ".gradle", "target", "bin", "obj", "Pods",
+  // Version control
+  ".git", ".svn", ".hg",
+  // IDE artefacts
+  ".idea", ".vscode",
+  // Logs & temp
+  "logs", "tmp", "temp",
+]);
 
+// ── File extensions / names to document ──────────────────────────────────────
+const ALLOWED_EXTENSIONS = new Set([
+  // Web
+  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts",
+  ".vue", ".svelte", ".astro",
+  ".css", ".scss", ".sass", ".less",
+  ".html",
+  // Backend
+  ".py", ".rb", ".go", ".rs", ".java", ".kt", ".kts",
+  ".cs", ".fs", ".cpp", ".c", ".h", ".hpp", ".php",
+  // Config / data
+  ".json", ".yaml", ".yml", ".toml", ".ini",
+  // Docs / markup
+  ".md", ".mdx", ".txt", ".rst",
+  // Query / schema
+  ".sql", ".graphql", ".gql", ".prisma",
+  // Shell
+  ".sh", ".bash", ".zsh", ".fish", ".ps1",
+]);
+
+// .env files included by basename match (values are masked, see below)
+const ENV_BASENAME_RE = /^\.env(\.[\w.]+)?$/;
+
+// ── Files to always skip by name ─────────────────────────────────────────────
+const IGNORE_FILENAMES = new Set([
+  "package-lock.json", "yarn.lock", "bun.lock", "pnpm-lock.yaml",
+  "composer.lock", "Gemfile.lock", "Cargo.lock",
+  ".DS_Store", "Thumbs.db", "desktop.ini",
+  "tsconfig.tsbuildinfo",
+]);
+
+// ── Mask .env values — keeps keys, replaces values with <VALUE> ──────────────
+function maskEnvContent(content) {
+  return content
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trimStart();
+      // Keep blank lines, comments, and export-only lines unchanged
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return line;
+      const eqIdx = line.indexOf("=");
+      const key   = line.slice(0, eqIdx + 1);
+      return `${key}<VALUE>`;
+    })
+    .join("\n");
+}
+
+// ── Recursively collect files skipping ignored dirs ───────────────────────────
+function collectFiles(dir) {
+  const results = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    // Skip ignored directories
+    if (entry.isDirectory()) {
+      if (!IGNORE_DIRS.has(entry.name)) results.push(...collectFiles(join(dir, entry.name)));
+      continue;
+    }
+    if (!entry.isFile()) continue;
+
+    const name = entry.name;
+    if (IGNORE_FILENAMES.has(name)) continue;
+
+    const ext = extname(name).toLowerCase();
+    const isEnvFile = ENV_BASENAME_RE.test(name);
+    if (!isEnvFile && !ALLOWED_EXTENSIONS.has(ext)) continue;
+
+    results.push(join(dir, name));
+  }
+  return results;
+}
+
+// ── Build payload ─────────────────────────────────────────────────────────────
+const filePaths = collectFiles(ROOT);
+console.log(`Collecting ${filePaths.length} files…`);
+
+const files = filePaths.map((absPath) => {
+  const filePath = relative(ROOT, absPath).replace(/\\/g, "/");
+  const isEnvFile = ENV_BASENAME_RE.test(basename(filePath));
+
+  let content = readFileSync(absPath, "utf-8");
+  if (isEnvFile) content = maskEnvContent(content); // strip real secrets
+
+  return { filePath, content };
+});
+
+// ── Sync ──────────────────────────────────────────────────────────────────────
 const res = await fetch(`${API_BASE}/api/v1/projects/${PROJECT_ID}/sync`, {
   method: "POST",
   headers: {
     "Authorization": `Bearer ${API_KEY}`,
-    "Content-Type": "application/json",
+    "Content-Type":  "application/json",
   },
   body: JSON.stringify({
     files,
@@ -392,7 +496,67 @@ const res = await fetch(`${API_BASE}/api/v1/projects/${PROJECT_ID}/sync`, {
 
 const json = await res.json();
 console.log(json.message);
-// → "Sync complete: 12 sections created, 3 updated."
+// → "Sync complete: 42 sections created, 7 updated."
+```
+
+---
+
+## File Filtering & .env Safety
+
+### What gets ignored
+
+The sync script skips directories and files that are **not user-created**:
+
+| Category | Examples |
+|---|---|
+| Package managers | `node_modules/`, `vendor/`, `.yarn/`, `Pods/` |
+| Build outputs | `dist/`, `build/`, `out/`, `.next/`, `.nuxt/` |
+| Test & coverage | `coverage/`, `.nyc_output/` |
+| Caches | `.turbo/`, `.cache/`, `.parcel-cache/` |
+| Python envs | `venv/`, `.venv/`, `__pycache__/` |
+| Other runtimes | `.gradle/`, `target/` (Maven), `bin/`, `obj/` (.NET) |
+| VCS | `.git/`, `.svn/` |
+| Lock files | `package-lock.json`, `yarn.lock`, `bun.lock`, `pnpm-lock.yaml` |
+| IDE artefacts | `.idea/`, `.vscode/`, `tsconfig.tsbuildinfo` |
+
+Only files with **known source-code extensions** are included — binaries,
+minified assets, and unknown formats are skipped by default.
+
+### .env file handling
+
+`.env` files **are included** in the sync (they document what configuration
+your project expects) but all values are replaced with `<VALUE>` so no real
+secrets ever leave your machine.
+
+Example — original `.env`:
+
+```
+DATABASE_URL=postgresql://user:password@host:5432/mydb
+NEXTAUTH_SECRET=super-secret-key-123
+NEXT_PUBLIC_API_URL=https://api.example.com
+```
+
+What gets sent to OnTap Dev:
+
+```
+DATABASE_URL=<VALUE>
+NEXTAUTH_SECRET=<VALUE>
+NEXT_PUBLIC_API_URL=<VALUE>
+```
+
+Comments and blank lines are preserved as-is. Only lines containing `=` have their value replaced.
+
+### Extending the ignore list
+
+To skip additional directories (e.g. a `generated/` folder in your project),
+add them to `IGNORE_DIRS` in `sync-docs.mjs`:
+
+```js
+const IGNORE_DIRS = new Set([
+  // … existing entries …
+  "generated",   // your custom generated folder
+  "storybook-static",
+]);
 ```
 
 ---

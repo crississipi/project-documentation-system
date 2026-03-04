@@ -1128,6 +1128,84 @@ export default function SettingsPage() {
               </div>
             </SectionCard>
 
+            {/* File Filtering */}
+            <SectionCard title="File Filtering & .env Safety" description="What the sync script documents — and what it deliberately ignores">
+              <div className="space-y-5 text-sm">
+
+                {/* Ignored dirs table */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Directories always skipped</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+                    {([
+                      { cat: "Package managers",  ex: "node_modules/, vendor/, .yarn/" },
+                      { cat: "Build outputs",      ex: "dist/, build/, .next/, out/" },
+                      { cat: "Test & coverage",    ex: "coverage/, .nyc_output/" },
+                      { cat: "Caches",             ex: ".turbo/, .cache/, .parcel-cache/" },
+                      { cat: "Python envs",        ex: "venv/, .venv/, __pycache__/" },
+                      { cat: "Other runtimes",     ex: ".gradle/, target/, bin/, obj/" },
+                      { cat: "Version control",    ex: ".git/, .svn/" },
+                      { cat: "IDE artefacts",      ex: ".idea/, .vscode/" },
+                    ] as { cat: string; ex: string }[]).map((row) => (
+                      <div key={row.cat} className="flex items-start gap-2 py-1.5 border-b border-slate-50">
+                        <span className="text-slate-600 font-medium w-36 shrink-0 text-xs">{row.cat}</span>
+                        <span className="text-slate-400 font-mono text-xs">{row.ex}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">
+                    Lock files (<code className="bg-slate-100 px-1 rounded">package-lock.json</code>,{" "}
+                    <code className="bg-slate-100 px-1 rounded">yarn.lock</code>,{" "}
+                    <code className="bg-slate-100 px-1 rounded">bun.lock</code>, etc.) and IDE metadata are also skipped by filename.
+                  </p>
+                </div>
+
+                {/* .env masking */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">.env files — included with values masked</p>
+                  <p className="text-slate-600 text-xs mb-3">
+                    <code className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded font-mono">.env</code> files
+                    {" "}are synced so the documentation shows what environment variables your project needs —
+                    but every value is replaced with
+                    {" "}<code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono">&lt;VALUE&gt;</code>{" "}
+                    before anything leaves your machine. No secrets are ever sent.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <p className="text-xs text-red-400 font-semibold">Original .env</p>
+                      <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs space-y-0.5">
+                        <p className="text-slate-400"># Database</p>
+                        <p className="text-slate-300">DATABASE_URL=postgresql://user:<span className="text-red-400">password</span>@host/db</p>
+                        <p className="text-slate-300">NEXTAUTH_SECRET=<span className="text-red-400">super-secret-key</span></p>
+                        <p className="text-slate-300">NEXT_PUBLIC_API_URL=https://api.example.com</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-emerald-500 font-semibold">What gets synced</p>
+                      <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs space-y-0.5">
+                        <p className="text-slate-400"># Database</p>
+                        <p className="text-slate-300">DATABASE_URL=<span className="text-emerald-400">&lt;VALUE&gt;</span></p>
+                        <p className="text-slate-300">NEXTAUTH_SECRET=<span className="text-emerald-400">&lt;VALUE&gt;</span></p>
+                        <p className="text-slate-300">NEXT_PUBLIC_API_URL=<span className="text-emerald-400">&lt;VALUE&gt;</span></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Custom ignores */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Adding custom ignored paths</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-0.5">
+                    <p className="text-slate-400"># In sync-docs.mjs — extend IGNORE_DIRS with your own folders:</p>
+                    <p className="text-emerald-400">const IGNORE_DIRS = new Set([</p>
+                    <p className="pl-4 text-slate-300">// … existing entries …</p>
+                    <p className="pl-4 text-yellow-300">&quot;generated&quot;,         <span className="text-slate-400">// your generated code folder</span></p>
+                    <p className="pl-4 text-yellow-300">&quot;storybook-static&quot;,  <span className="text-slate-400">// Storybook build output</span></p>
+                    <p className="text-emerald-400">]);</p>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
             {/* Direct API */}
             <SectionCard title="Direct REST API" description="Use curl or any HTTP client to call the API without installing the CLI">
               <div className="space-y-3 text-sm">
