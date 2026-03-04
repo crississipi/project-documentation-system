@@ -12,6 +12,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { ExportPDFButton } from "./ExportPDFButton";
 import { ShareModal } from "./ShareModal";
 import { ProjectInfoModal } from "./ProjectInfoModal";
+import DocSearch from "./DocSearch";
 import type { DocumentationPageData, SectionWithBlocks, PaperSize } from "@/types";
 import { cn } from "@/lib/cn";
 import { apiFetch } from "@/lib/apiFetch";
@@ -180,18 +181,19 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
           </div>
         </div>
 
-        {/* Center – Save status */}
-        <div className="text-xs text-slate-400 hidden md:block">
-          {saving ? (
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
-              Saving…
-            </span>
-          ) : lastSaved ? (
-            `Auto-saved ${lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-          ) : (
-            <span className="text-slate-300">Auto-saves after 20 s of inactivity</span>
-          )}
+        {/* Center – Search + Save status */}
+        <div className="hidden md:flex items-center gap-3 flex-1 justify-center min-w-0 max-w-sm mx-4">
+          <DocSearch sections={sections} onNavigate={navigateToSection} />
+          <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap">
+            {saving ? (
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
+                Saving…
+              </span>
+            ) : lastSaved ? (
+              `Saved ${lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            ) : null}
+          </span>
         </div>
 
         {/* Right */}
