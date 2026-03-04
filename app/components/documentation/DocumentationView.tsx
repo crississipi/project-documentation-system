@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BiArrowBack, BiSave, BiShareAlt } from "react-icons/bi";
+import { BiArrowBack, BiSave, BiShareAlt, BiInfoCircle } from "react-icons/bi";
 import type { Editor } from "@tiptap/react";
 import { CoverPage } from "./CoverPage";
 import { TableOfContents } from "./TableOfContents";
@@ -11,6 +11,7 @@ import { SectionsPanel } from "./SectionsPanel";
 import { EditorToolbar } from "./EditorToolbar";
 import { ExportPDFButton } from "./ExportPDFButton";
 import { ShareModal } from "./ShareModal";
+import { ProjectInfoModal } from "./ProjectInfoModal";
 import type { DocumentationPageData, SectionWithBlocks, PaperSize } from "@/types";
 import { cn } from "@/lib/cn";
 import { apiFetch } from "@/lib/apiFetch";
@@ -32,6 +33,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showShare, setShowShare] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [coAuthors, setCoAuthors] = useState(initialData.coAuthors);
   const [showSectionsPanel, setShowSectionsPanel] = useState(false);
   const [activeEditor, setActiveEditor] = useState<Editor | null>(null);
@@ -230,6 +232,16 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
             <span className="hidden sm:inline">Share</span>
           </button>
 
+          <button
+            type="button"
+            aria-label="Project info"
+            onClick={() => setShowInfo(true)}
+            className="flex items-center gap-1.5 px-3 h-7 text-xs font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <BiInfoCircle className="text-sm" aria-hidden="true" />
+            <span className="hidden sm:inline">Info</span>
+          </button>
+
           {/* Toggle sections panel on mobile */}
           <button
             type="button"
@@ -320,6 +332,14 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
           projectId={project.id}
           projectTitle={project.title}
           onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {showInfo && (
+        <ProjectInfoModal
+          project={project}
+          onClose={() => setShowInfo(false)}
+          onVisibilityChange={(visibility) => setProject((prev) => ({ ...prev, visibility }))}
         />
       )}
     </div>
