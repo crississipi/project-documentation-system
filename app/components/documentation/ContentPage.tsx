@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import type { SectionWithBlocks } from "@/types";
+import type { Editor } from "@tiptap/react";
 import { DocumentEditor } from "./DocumentEditor";
 
 interface ContentPageProps {
@@ -10,6 +11,7 @@ interface ContentPageProps {
   projectId: string;
   paperSize: "A4" | "LEGAL" | "LONG";
   onSave: (sectionId: string, html: string) => void;
+  onEditorReady?: (editor: Editor) => void;
 }
 
 const PAPER_DIMENSIONS: Record<string, { width: string; minHeight: string }> = {
@@ -18,7 +20,7 @@ const PAPER_DIMENSIONS: Record<string, { width: string; minHeight: string }> = {
   LONG: { width: "816px", minHeight: "1248px" },
 };
 
-export function ContentPage({ section, pageNumber, projectId, paperSize, onSave }: ContentPageProps) {
+export function ContentPage({ section, pageNumber, projectId, paperSize, onSave, onEditorReady }: ContentPageProps) {
   const dims = PAPER_DIMENSIONS[paperSize] ?? PAPER_DIMENSIONS.A4;
 
   // Merge all text blocks into one HTML string for the editor
@@ -42,9 +44,9 @@ export function ContentPage({ section, pageNumber, projectId, paperSize, onSave 
     >
       <div className="w-full h-0.5 bg-gradient-to-r from-violet-200 to-indigo-200" />
 
-      <div className="flex-1 flex flex-col px-16 py-12" style={{ lineHeight: "1.5", fontSize: "12pt" }}>
+      <div className="flex-1 flex flex-col px-16 py-8" style={{ lineHeight: "1.5", fontSize: "12pt" }}>
         {/* Section Title */}
-        <h2 className="text-xl font-bold text-slate-900 mb-6 pb-3 border-b border-slate-200">
+        <h2 className="text-xl font-bold text-slate-900 mb-3 pb-2 border-b border-slate-200">
           {section.title}
         </h2>
 
@@ -56,6 +58,7 @@ export function ContentPage({ section, pageNumber, projectId, paperSize, onSave 
             projectId={projectId}
             initialContent={initialContent}
             onSave={handleSave}
+            onEditorReady={onEditorReady}
           />
         </div>
       </div>

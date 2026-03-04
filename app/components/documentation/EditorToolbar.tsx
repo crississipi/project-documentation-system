@@ -7,7 +7,7 @@ import {
   BiCode, BiCodeBlock, BiLink, BiUnlink,
   BiAlignLeft, BiAlignMiddle, BiAlignRight, BiAlignJustify,
   BiListOl, BiListUl, BiMinus, BiHighlight, BiUndo, BiRedo,
-  BiChevronDown, BiSolidQuoteAltLeft,
+  BiSolidQuoteAltLeft,
 } from "react-icons/bi";
 import { cn } from "@/lib/cn";
 
@@ -28,8 +28,8 @@ function ToolbarButton({ onClick, active, title, children, disabled }: ToolbarBu
       onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       className={cn(
         "w-7 h-7 flex items-center justify-center rounded text-sm transition-colors",
-        active ? "bg-violet-100 text-violet-700" : "text-slate-600 hover:bg-slate-100",
-        disabled && "opacity-40 cursor-not-allowed"
+        active ? "bg-violet-100 text-violet-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+        disabled && "opacity-30 cursor-not-allowed"
       )}
     >
       {children}
@@ -37,12 +37,12 @@ function ToolbarButton({ onClick, active, title, children, disabled }: ToolbarBu
   );
 }
 
-function Divider() {
-  return <div className="w-px h-5 bg-slate-200 mx-1" />;
+function HDivider() {
+  return <div className="h-px w-full bg-slate-200 my-1" />;
 }
 
 interface EditorToolbarProps {
-  editor: Editor;
+  editor: Editor | null;
 }
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
@@ -59,6 +59,17 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  if (!editor) {
+    return (
+      <div
+        data-pdf-hide="true"
+        className="flex flex-col items-center gap-0.5 py-3 px-1 w-10 shrink-0 border-r border-slate-200 bg-white"
+      >
+        <span className="text-[10px] text-slate-300 text-center leading-tight mt-2">Click a section to edit</span>
+      </div>
+    );
+  }
 
   const activeHeading = ([1, 2, 3, 4, 5, 6] as const).find(
     (level) => editor.isActive("heading", { level })
@@ -77,7 +88,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   return (
     <div
       data-pdf-hide="true"
-      className="flex items-center gap-0.5 px-3 py-1.5 border-b border-slate-200 bg-white flex-wrap sticky top-0 z-10"
+      className="flex flex-col items-center gap-0.5 py-2 px-1 w-10 shrink-0 border-r border-slate-200 bg-white overflow-y-auto"
     >
       {/* Undo / Redo */}
       <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo" disabled={!editor.can().undo()}>
@@ -87,7 +98,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <BiRedo />
       </ToolbarButton>
 
-      <Divider />
+      <HDivider />
 
       {/* Heading dropdown */}
       <div className="relative" ref={headingRef}>
@@ -95,17 +106,16 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           type="button"
           onMouseDown={(e) => { e.preventDefault(); setHeadingOpen(!headingOpen); }}
           className={cn(
-            "flex items-center gap-1 px-2 h-7 text-xs font-semibold rounded transition-colors",
+            "flex items-center justify-center w-7 h-7 text-[10px] font-bold rounded transition-colors",
             activeHeading
               ? "bg-violet-100 text-violet-700"
-              : "text-slate-600 hover:bg-slate-100"
+              : "text-slate-500 hover:bg-slate-100"
           )}
         >
-          {activeHeading ? `H${activeHeading}` : "Normal"}
-          <BiChevronDown className="w-3 h-3" />
+          {activeHeading ? `H${activeHeading}` : "H"}
         </button>
         {headingOpen && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
+          <div className="absolute top-0 left-full ml-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 min-w-[120px]">
             <button
               type="button"
               onMouseDown={(e) => {
@@ -114,11 +124,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
                 setHeadingOpen(false);
               }}
               className={cn(
-                "w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 transition-colors",
+                "w-full text-left px-3 py-1 text-xs hover:bg-slate-50 transition-colors",
                 !activeHeading ? "bg-violet-50 text-violet-700" : "text-slate-600"
               )}
             >
-              Normal text
+              Normal
             </button>
             {([1, 2, 3, 4, 5, 6] as const).map((level) => (
               <button
@@ -130,26 +140,20 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
                   setHeadingOpen(false);
                 }}
                 className={cn(
-                  "w-full text-left px-3 py-1.5 hover:bg-slate-50 transition-colors",
+                  "w-full text-left px-3 py-1 hover:bg-slate-50 transition-colors text-xs",
                   editor.isActive("heading", { level })
-                    ? "bg-violet-50 text-violet-700"
+                    ? "bg-violet-50 text-violet-700 font-semibold"
                     : "text-slate-600",
-                  level === 1 && "text-lg font-bold",
-                  level === 2 && "text-base font-bold",
-                  level === 3 && "text-sm font-semibold",
-                  level === 4 && "text-sm font-semibold",
-                  level === 5 && "text-xs font-semibold",
-                  level === 6 && "text-xs font-semibold uppercase tracking-wide",
                 )}
               >
-                Heading {level}
+                H{level}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      <Divider />
+      <HDivider />
 
       {/* Text formatting */}
       <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Bold">
@@ -168,7 +172,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <BiHighlight />
       </ToolbarButton>
 
-      <Divider />
+      <HDivider />
 
       {/* Alignment */}
       <ToolbarButton onClick={() => editor.chain().focus().setTextAlign("left").run()} active={editor.isActive({ textAlign: "left" })} title="Align Left">
@@ -184,7 +188,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <BiAlignJustify />
       </ToolbarButton>
 
-      <Divider />
+      <HDivider />
 
       {/* Lists */}
       <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Bullet List">
@@ -197,7 +201,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <BiSolidQuoteAltLeft />
       </ToolbarButton>
 
-      <Divider />
+      <HDivider />
 
       {/* Code */}
       <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive("code")} title="Inline Code">
@@ -207,7 +211,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <BiCodeBlock />
       </ToolbarButton>
 
-      <Divider />
+      <HDivider />
 
       {/* Link */}
       <ToolbarButton onClick={setLink} active={editor.isActive("link")} title="Add Link">
@@ -217,7 +221,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <BiUnlink />
       </ToolbarButton>
 
-      <Divider />
+      <HDivider />
 
       {/* Horizontal Rule */}
       <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">

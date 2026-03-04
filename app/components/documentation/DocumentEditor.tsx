@@ -10,7 +10,7 @@ import Link from "@tiptap/extension-link";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { createLowlight, common } from "lowlight";
 import { useEffect } from "react";
-import { EditorToolbar } from "./EditorToolbar";
+import type { Editor } from "@tiptap/react";
 
 const lowlight = createLowlight(common);
 
@@ -19,6 +19,8 @@ interface DocumentEditorProps {
   projectId: string;
   initialContent: string;
   onSave: (sectionId: string, content: string) => void;
+  /** Called when this editor gains focus so the parent can wire the shared toolbar */
+  onEditorReady?: (editor: Editor) => void;
 }
 
 export function DocumentEditor({
@@ -26,6 +28,7 @@ export function DocumentEditor({
   projectId,
   initialContent,
   onSave,
+  onEditorReady,
 }: DocumentEditorProps) {
 
   const editor = useEditor({
@@ -58,8 +61,16 @@ export function DocumentEditor({
       // Notify parent immediately; parent owns the debounce/auto-save timer
       onSave(sectionId, editor.getHTML());
     },
+    onFocus: () => {
+      if (editor && onEditorReady) onEditorReady(editor);
+    },
     immediatelyRender: false,
   });
+
+  // Register editor on mount so toolbar works immediately
+  useEffect(() => {
+    if (editor && onEditorReady) onEditorReady(editor);
+  }, [editor, onEditorReady]);
 
   // Update content when switching sections
   useEffect(() => {
@@ -75,7 +86,6 @@ export function DocumentEditor({
 
   return (
     <div className="flex flex-col h-full">
-      <EditorToolbar editor={editor} />
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="h-full" key={sectionId} />
       </div>

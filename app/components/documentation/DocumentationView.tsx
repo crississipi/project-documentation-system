@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BiArrowBack, BiSave, BiShareAlt } from "react-icons/bi";
+import type { Editor } from "@tiptap/react";
 import { CoverPage } from "./CoverPage";
 import { TableOfContents } from "./TableOfContents";
 import { ContentPage } from "./ContentPage";
 import { SectionsPanel } from "./SectionsPanel";
+import { EditorToolbar } from "./EditorToolbar";
 import { ExportPDFButton } from "./ExportPDFButton";
 import { ShareModal } from "./ShareModal";
-import { Button } from "@/app/components/ui/Button";
 import type { DocumentationPageData, SectionWithBlocks, PaperSize } from "@/types";
 import { cn } from "@/lib/cn";
 import { apiFetch } from "@/lib/apiFetch";
@@ -33,6 +34,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
   const [showShare, setShowShare] = useState(false);
   const [coAuthors, setCoAuthors] = useState(initialData.coAuthors);
   const [showSectionsPanel, setShowSectionsPanel] = useState(false);
+  const [activeEditor, setActiveEditor] = useState<Editor | null>(null);
 
   const pendingSaves = useRef<Map<string, string>>(new Map());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,6 +73,11 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
 
   // Flush on unmount
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); flushSaves(); }, [flushSaves]);
+
+  /** Track which editor the user last focused — drives the left toolbar */
+  const handleEditorReady = useCallback((editor: Editor) => {
+    setActiveEditor(editor);
+  }, []);
 
   const navigateToSection = (id: string) => {
     setActiveSectionId(id);
@@ -242,6 +249,11 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden relative">
+        {/* Left Toolbar Sidebar — formatting tools */}
+        <div className="hidden sm:block sticky top-0 h-full z-10">
+          <EditorToolbar editor={activeEditor} />
+        </div>
+
         {/* Scrollable Document Area */}
         <div id="doc-scroll-area" className="flex-1 overflow-y-auto py-6 sm:py-8 px-2 sm:px-4">
           <CoverPage
@@ -264,6 +276,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
               paperSize={paperSize}
               pageNumber={index + 3}
               onSave={handleContentChange}
+              onEditorReady={handleEditorReady}
             />
           ))}
 

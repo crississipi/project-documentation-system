@@ -223,19 +223,18 @@ function escapeHtml(str: string): string {
 /**
  * Convert a file's content + symbols into formatted TipTap-compatible HTML.
  *
- * Structure:
- *   <h1>FileName</h1>
+ * Heading hierarchy (matches professional documentation standards):
+ *   Section title is H2 (rendered by ContentPage) — we do NOT duplicate it.
  *   <p><em>path/to/file</em> · language</p>
  *   <hr>
  *   For each symbol:
- *     <h2 id="sym-symbolName">symbolName</h2>
+ *     <h3 id="sym-symbolName">symbolName</h3>
  *     <p>kind · lines startLine–endLine</p>
  *     <blockquote>docstring (with [see: X] converted to links)</blockquote>
- *     <pre><code class="language-xxx">signature / body</code></pre>
+ *     <pre><code class="language-xxx">source body</code></pre>
  *   If no symbols, just wrap full content in a code block.
  */
 function fileToHtml(file: SyncFilePayload): string {
-  const fileName = file.filePath.split("/").pop() ?? file.filePath;
   const lang = file.language ?? detectLanguage(file.filePath);
   const parts: string[] = [];
 
@@ -244,8 +243,7 @@ function fileToHtml(file: SyncFilePayload): string {
     (file.symbols ?? []).map((s) => s.name)
   );
 
-  // File header
-  parts.push(`<h1>${escapeHtml(fileName)}</h1>`);
+  // File path + language subheading (section title is already rendered by UI)
   parts.push(`<p><em>${escapeHtml(file.filePath)}</em> · ${escapeHtml(lang)}</p>`);
   parts.push("<hr>");
 
@@ -254,19 +252,15 @@ function fileToHtml(file: SyncFilePayload): string {
     const lines = file.content.split("\n");
 
     for (const sym of file.symbols) {
-      // Anchor id for navigation — kebab-case to avoid collisions
+      // Anchor id for navigation — sanitised to avoid collisions
       const anchorId = `sym-${sym.name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-      parts.push(`<h2 id="${anchorId}">${escapeHtml(sym.name)}</h2>`);
+      parts.push(`<h3 id="${anchorId}">${escapeHtml(sym.name)}</h3>`);
       parts.push(`<p><strong>${escapeHtml(sym.kind)}</strong> · lines ${sym.startLine}–${sym.endLine}</p>`);
 
       if (sym.docstring) {
         // Convert [see: NAME] markers to navigable anchor links
         const docHtml = convertSeeLinks(escapeHtml(sym.docstring), symbolNames);
         parts.push(`<blockquote><p>${docHtml}</p></blockquote>`);
-      }
-
-      if (sym.signature) {
-        parts.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(sym.signature)}</code></pre>`);
       }
 
       // Extract the body from source

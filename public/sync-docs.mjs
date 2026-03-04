@@ -15,9 +15,41 @@
 // docstrings for every extracted symbol via the selected model on OpenRouter.
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { readFileSync, readdirSync } from "fs";
+import { readFileSync, readdirSync, existsSync } from "fs";
 import { execSync }                  from "child_process";
 import { join, relative, extname, basename } from "path";
+
+// ══════════════════════════════════════════════════════════════════════════════
+// .env file loader — reads .env from CWD into process.env (no dependencies)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function loadEnvFile(dir) {
+  const envPath = join(dir, ".env");
+  if (!existsSync(envPath)) return;
+  try {
+    const content = readFileSync(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx < 1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let val = trimmed.slice(eqIdx + 1).trim();
+      // Strip surrounding quotes if present
+      if ((val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      // Only set if not already defined (real env vars take precedence)
+      if (!(key in process.env)) {
+        process.env[key] = val;
+      }
+    }
+    console.log(`Loaded environment from ${envPath}`);
+  } catch { /* ignore read errors */ }
+}
+
+loadEnvFile(process.cwd());
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Configuration
@@ -25,9 +57,9 @@ import { join, relative, extname, basename } from "path";
 
 const API_KEY    = process.env.ONTAP_API_KEY;
 const PROJECT_ID = process.env.ONTAP_PROJECT_ID;
-const API_BASE   = "https://project-documentation-system.vercel.app";
+const API_BASE   = process.env.ONTAP_API_BASE ?? "https://project-documentation-system.vercel.app";
 const ROOT       = process.env.ROOT ? join(process.cwd(), process.env.ROOT) : process.cwd();
-const DRY_RUN    = process.env.DRY_RUN === "true";
+const DRY_RUN    = process.env.DRY_RUN === "true" || process.env.DRY_RUN === "1";
 
 // AI configuration (optional — set OPENROUTER_API_KEY to enable)
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? "";
@@ -37,16 +69,18 @@ const AI_CONCURRENCY     = parseInt(process.env.AI_CONCURRENCY ?? "3", 10);
 
 if (!API_KEY) {
   console.error("Error: ONTAP_API_KEY environment variable is not set.");
+  console.error("Set it in your .env file or export it: export ONTAP_API_KEY=ontap_xxx");
   process.exit(1);
 }
 if (!PROJECT_ID) {
   console.error("Error: ONTAP_PROJECT_ID environment variable is not set.");
+  console.error("Set it in your .env file or export it: export ONTAP_PROJECT_ID=your-uuid");
   process.exit(1);
 }
 if (AI_ENABLED) {
   console.log(`AI documentation enabled — model: ${OPENROUTER_MODEL}`);
 } else {
-  console.log("AI documentation disabled (set OPENROUTER_API_KEY to enable).");
+  console.log("AI documentation disabled (set OPENROUTER_API_KEY in .env to enable).");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -513,7 +547,7 @@ function escapeRegex(s) {
  * Call OpenRouter to generate a professional docstring for a symbol.
  *
  * The prompt follows patterns from Typedoc, JSDoc, Doxygen, and Sphinx:
- *  - Purpose (what the symbol does)
+ *  - Purpose (what the symbol does in practical terms)
  *  - Parameters / inputs
  *  - Return value
  *  - Side effects / exceptions
@@ -522,17 +556,21 @@ function escapeRegex(s) {
  * The FULL file content is sent as context so the AI understands the broader
  * codebase structure, with the specific symbol highlighted for documentation.
  */
-async function generateDocstring(symbol, fileContent, filePath, references) {
+async function generateDocstring(symbol, fileContent, filePath, references, alreadyDocumented) {
   const refSection = references.length > 0
-    ? `\n\nThis symbol references the following identifiers defined elsewhere in the project:\n${references.map(r => `- ${r.name} (${r.kind} in ${r.filePath})`).join("\n")}\nFor each referenced symbol, include a "See also" line with a [see: NAME] link marker.`
+    ? `\n\nThis symbol references these other project symbols:\n${references.map(r => `- ${r.name} (${r.kind} in ${r.filePath})`).join("\n")}\nFor each referenced symbol, include a [see: NAME] marker so the documentation UI creates a navigable link.`
     : "";
 
-  const prompt = `You are a senior software engineer writing technical reference documentation.
-Analyze the source file below and produce a professional documentation description for the highlighted symbol.
+  const dedupSection = alreadyDocumented.length > 0
+    ? `\n\nThe following symbols have ALREADY been documented elsewhere. Do NOT re-explain them in detail. Instead, mention them briefly and add a [see: NAME] link:\n${alreadyDocumented.map(n => `- ${n}`).join("\n")}`
+    : "";
+
+  const prompt = `You are a senior technical writer creating reference documentation for a software project.
+Analyze the source file below and write a clear, practical description for the highlighted symbol.
 
 FILE: ${filePath}
 ${"─".repeat(60)}
-${fileContent.length > 12000 ? fileContent.slice(0, 12000) + "\n// … (file truncated for brevity)" : fileContent}
+${fileContent.length > 15000 ? fileContent.slice(0, 15000) + "\n// … (file truncated for brevity)" : fileContent}
 ${"─".repeat(60)}
 
 SYMBOL TO DOCUMENT:
@@ -543,23 +581,24 @@ SYMBOL TO DOCUMENT:
 
 SOURCE CODE:
 \`\`\`
-${symbol.body.length > 3000 ? symbol.body.slice(0, 3000) + "\n// … truncated" : symbol.body}
+${symbol.body.length > 4000 ? symbol.body.slice(0, 4000) + "\n// … truncated" : symbol.body}
 \`\`\`
-${refSection}
+${refSection}${dedupSection}
 
-RULES:
-1. Write a concise, professional description of what this ${symbol.kind} does.
-2. For functions/methods: describe parameters, return value, side effects, and exceptions.
-3. For classes/interfaces/types: describe purpose, key members, and usage context.
-4. For variables/constants: describe the stored value, purpose, and where it is consumed.
-5. For imports: explain what is imported and why it is needed in this file.
+WRITING RULES:
+1. Explain what this ${symbol.kind} does in clear, practical terms. Avoid overly academic or highly technical jargon.
+2. For functions/methods: describe what it accepts, what it returns, any side effects, and when you would use it.
+3. For classes/interfaces/types: describe its purpose, its key members, and how it fits into the broader system.
+4. For variables/constants: describe the stored value, its purpose, and where it is consumed.
+5. For imports: explain what is being imported and why it is needed in this file.
 6. Use present tense and active voice ("Handles…", "Returns…", "Stores…").
-7. If this symbol calls or references other project symbols, append a "See also:" line with [see: functionName] markers for each — these become navigable links in the documentation UI.
-8. Do NOT output code fences, markdown headers, the symbol name as a title, or filler like "This function…". Start directly with the descriptive verb.
-9. Keep it 1–4 sentences for simple symbols, up to 8 for complex ones.
-10. Match the quality and tone of Typedoc / JSDoc / Doxygen / Sphinx output.
+7. If this symbol calls or uses other project symbols, add a [see: symbolName] marker for each — these become clickable links in the documentation.
+8. If a referenced symbol was already documented, do NOT re-explain it — just mention it briefly with a [see: NAME] link.
+9. Do NOT output code fences, markdown headers, the symbol name as a title, or filler like "This function…". Start directly with the action verb.
+10. Keep it 1–4 sentences for simple symbols, up to 6 for complex ones. Be detailed but concise.
+11. Match the quality and tone of professional Typedoc / JSDoc / Doxygen / Sphinx documentation output.
 
-Respond with ONLY the documentation text.`;
+Respond with ONLY the documentation text — no JSON, no markdown formatting, just the plain description.`;
 
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -594,11 +633,15 @@ Respond with ONLY the documentation text.`;
 
 /**
  * Generate AI docstrings for all symbols in a file with concurrency control.
+ * Tracks which symbols have been documented to avoid redundant explanations.
  */
-async function documentSymbolsWithAI(symbols, fileContent, filePath, symbolIndex) {
+async function documentSymbolsWithAI(symbols, fileContent, filePath, symbolIndex, globalDocumented) {
   // If file has many imports, group them into one AI call instead of N calls
   const importSymbols = symbols.filter(s => s.kind === "import");
   const otherSymbols  = symbols.filter(s => s.kind !== "import");
+
+  // Track symbols documented so far (for dedup across symbols in this file)
+  const alreadyDocumented = [...globalDocumented];
 
   const tasks = [];
 
@@ -614,27 +657,30 @@ async function documentSymbolsWithAI(symbols, fileContent, filePath, symbolIndex
         signature: `${importSymbols.length} import statements`,
         body: combinedBody,
       };
-      const doc = await generateDocstring(batchSymbol, fileContent, filePath, []);
+      const doc = await generateDocstring(batchSymbol, fileContent, filePath, [], alreadyDocumented);
       if (doc) {
-        // Apply the same docstring to all imports in this file
         for (const imp of importSymbols) imp.docstring = doc;
       }
     });
   } else {
     for (const sym of importSymbols) {
       tasks.push(async () => {
-        const doc = await generateDocstring(sym, fileContent, filePath, []);
+        const doc = await generateDocstring(sym, fileContent, filePath, [], alreadyDocumented);
         if (doc) sym.docstring = doc;
       });
     }
   }
 
-  // Individual calls for non-import symbols
+  // Individual calls for non-import symbols — sequential to allow dedup tracking
   for (const sym of otherSymbols) {
     tasks.push(async () => {
       const refs = findReferences(sym.body, sym.name, symbolIndex);
-      const doc = await generateDocstring(sym, fileContent, filePath, refs);
-      if (doc) sym.docstring = doc;
+      const doc = await generateDocstring(sym, fileContent, filePath, refs, alreadyDocumented);
+      if (doc) {
+        sym.docstring = doc;
+        alreadyDocumented.push(sym.name);
+        globalDocumented.add(sym.name);
+      }
     });
   }
 
@@ -689,13 +735,14 @@ console.log(`   Indexed ${symbolIndex.size} unique symbols for cross-referencing
 // ── Phase 3: AI documentation ────────────────────────────────────────────────
 if (AI_ENABLED && totalSymbols > 0) {
   console.log(`\n🤖 Phase 3: Generating AI documentation (${OPENROUTER_MODEL})…`);
+  const globalDocumented = new Set(); // tracks all symbols documented so far for dedup
   let fileNum = 0;
   for (const file of allFileData) {
     if (file.symbols.length === 0) continue;
     fileNum++;
     const label = file.filePath.length > 50 ? "…" + file.filePath.slice(-47) : file.filePath;
     process.stdout.write(`   [${fileNum}] ${label} (${file.symbols.length} symbols)…`);
-    await documentSymbolsWithAI(file.symbols, file.content, file.filePath, symbolIndex);
+    await documentSymbolsWithAI(file.symbols, file.content, file.filePath, symbolIndex, globalDocumented);
     console.log(" ✓");
   }
   const documented = allFileData.reduce((s, f) => s + f.symbols.filter(sym => sym.docstring).length, 0);
