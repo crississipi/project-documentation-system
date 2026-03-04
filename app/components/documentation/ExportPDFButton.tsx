@@ -122,7 +122,8 @@ export function ExportPDFButton({ projectTitle, contentAreaId, paperSize }: Expo
           logging: false,
           backgroundColor: "#ffffff",
           onclone: (clonedDoc) => {
-            clonedDoc.querySelectorAll<HTMLElement>("[data-pdf-footer]").forEach((el) => {
+            // Hide footer (redrawn by jsPDF) and toolbar/UI chrome
+            clonedDoc.querySelectorAll<HTMLElement>("[data-pdf-footer],[data-pdf-hide]").forEach((el) => {
               el.style.display = "none";
             });
           },

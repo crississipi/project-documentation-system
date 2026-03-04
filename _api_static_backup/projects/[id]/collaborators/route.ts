@@ -105,7 +105,13 @@ export async function POST(request: NextRequest, { params }: Params) {
       },
     });
 
-    await sendInviteEmail(email, project.author.name, project.title, role, inviteToken);
+    // Send invite email — non-fatal: invite is created even if email fails
+    try {
+      await sendInviteEmail(email, project.author.name, project.title, role, inviteToken);
+    } catch (emailErr) {
+      console.error("[invite email failed]", emailErr);
+      // Invite record exists; user can resend manually
+    }
 
     return created({
       id: collaborator.id,

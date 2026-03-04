@@ -75,7 +75,10 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   };
 
   return (
-    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-slate-200 bg-white flex-wrap sticky top-0 z-10">
+    <div
+      data-pdf-hide="true"
+      className="flex items-center gap-0.5 px-3 py-1.5 border-b border-slate-200 bg-white flex-wrap sticky top-0 z-10"
+    >
       {/* Undo / Redo */}
       <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo" disabled={!editor.can().undo()}>
         <BiUndo />

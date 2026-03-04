@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
 import { signToken, signPreAuthToken } from "@/lib/auth";
@@ -50,6 +51,14 @@ export async function POST(request: NextRequest) {
       return unauthorized("Invalid email or password.");
     }
 
+    // ── 4b) Disabled account check ─────────────────────────────────────────
+    if (user.isDisabled) {
+      return NextResponse.json(
+        { success: false, error: "Your account has been disabled. Please contact support." },
+        { status: 403 }
+      );
+    }
+
     // ── 5) Account lockout check ──────────────────────────────────────────
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const retryAfterSeconds = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000);
@@ -93,11 +102,31 @@ export async function POST(request: NextRequest) {
 
     // ── 9) 2FA check — issue pre-auth token instead of raw userId ──────────
     if (user.twoFactorEnabled) {
-      const preAuthToken = await signPreAuthToken(user.id);
-      return NextResponse.json(
-        { success: true, requiresOtp: true, preAuthToken },
-        { status: 200 }
-      );
+      // Check if the request comes from a previously trusted device
+      const deviceCookie = request.cookies.get("trusted_device")?.value;
+      if (deviceCookie) {
+        const trusted = await prisma.trustedDevice.findFirst({
+          where: { userId: user.id, deviceToken: deviceCookie },
+        });
+        if (trusted) {
+          // Touch lastUsedAt by forcing an update
+          await prisma.trustedDevice.update({ where: { id: trusted.id }, data: {} });
+          // Proceed directly to JWT issuance (skip OTP)
+        } else {
+          // Cookie present but no matching record — issue preAuthToken
+          const preAuthToken = await signPreAuthToken(user.id);
+          return NextResponse.json(
+            { success: true, requiresOtp: true, preAuthToken },
+            { status: 200 }
+          );
+        }
+      } else {
+        const preAuthToken = await signPreAuthToken(user.id);
+        return NextResponse.json(
+          { success: true, requiresOtp: true, preAuthToken },
+          { status: 200 }
+        );
+      }
     }
 
     // ── 10) Sign JWT ──────────────────────────────────────────────────────
@@ -106,6 +135,18 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: user.name,
       role: user.role,
+    });
+
+    const maxAge = parseInt(process.env.JWT_ACCESS_EXPIRES_IN ?? "86400");
+    const isProd = process.env.NODE_ENV === "production";
+
+    // Create a session record
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token: crypto.randomBytes(32).toString("hex"),
+        expiresAt: new Date(Date.now() + maxAge * 1000),
+      },
     });
 
     const response = NextResponse.json(
@@ -127,9 +168,9 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set("auth_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: parseInt(process.env.JWT_ACCESS_EXPIRES_IN ?? "86400"),
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge,
       path: "/",
     });
 

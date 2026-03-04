@@ -31,9 +31,21 @@ export default function TwoFactorModal({
   const [error, setError] = useState("");
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Focus first input on mount
+  // Auto-send OTP on mount, then focus first input
   useEffect(() => {
-    inputRefs.current[0]?.focus();
+    const sendOnMount = async () => {
+      try {
+        await apiFetch("/api/auth/2fa/send-otp", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(preAuthToken ? { preAuthToken } : {}),
+        });
+        setResendCooldown(60);
+      } catch { /* ignore — user can still manually resend */ }
+      inputRefs.current[0]?.focus();
+    };
+    sendOnMount();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Countdown timer for resend

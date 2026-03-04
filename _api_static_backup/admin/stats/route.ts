@@ -8,13 +8,14 @@ export async function GET() {
     const { error } = await requireAdmin();
     if (error) return error;
 
-    const [totalUsers, verifiedUsers, totalProjects, publicProjects, totalSessions] =
+    const [totalUsers, verifiedUsers, totalProjects, publicProjects, totalSessions, disabledUsers] =
       await Promise.all([
         prisma.user.count(),
         prisma.user.count({ where: { isEmailVerified: true } }),
         prisma.project.count(),
         prisma.project.count({ where: { visibility: "PUBLIC" } }),
         prisma.session.count({ where: { expiresAt: { gt: new Date() } } }),
+        prisma.user.count({ where: { isDisabled: true } }),
       ]);
 
     return ok({
@@ -24,6 +25,7 @@ export async function GET() {
       publicProjects,
       activeSessions: totalSessions,
       unverifiedUsers: totalUsers - verifiedUsers,
+      disabledUsers,
     });
   } catch (err) {
     console.error("[GET /api/admin/stats]", err);

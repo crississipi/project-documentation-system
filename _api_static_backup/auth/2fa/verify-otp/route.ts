@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { signToken, verifyPreAuthToken } from "@/lib/auth";
 import { serverError, badRequest } from "@/lib/utils";
@@ -85,12 +86,33 @@ export async function POST(request: NextRequest) {
     });
 
     if (loginFlow) {
-      // Issue JWT and set cookie
+      // Issue JWT and set session cookie
       const token = await signToken({
         sub: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
+      });
+
+      const maxAge = parseInt(process.env.JWT_ACCESS_EXPIRES_IN ?? "86400");
+      const isProd = process.env.NODE_ENV === "production";
+
+      // Create a session record
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      await prisma.session.create({
+        data: {
+          userId: user.id,
+          token: sessionToken,
+          expiresAt: new Date(Date.now() + maxAge * 1000),
+        },
+      });
+
+      // Trust this device so future logins skip OTP
+      const deviceToken = crypto.randomBytes(32).toString("hex");
+      const ua = request.headers.get("user-agent") ?? undefined;
+      const ip = getClientIp(request);
+      await prisma.trustedDevice.create({
+        data: { userId: user.id, deviceToken, userAgent: ua, ipAddress: ip },
       });
 
       const response = NextResponse.json(
@@ -112,9 +134,18 @@ export async function POST(request: NextRequest) {
 
       response.cookies.set("auth_token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: parseInt(process.env.JWT_ACCESS_EXPIRES_IN ?? "86400"),
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax",
+        maxAge,
+        path: "/",
+      });
+
+      // Set long-lived trusted device cookie (30 days)
+      response.cookies.set("trusted_device", deviceToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax",
+        maxAge: 30 * 24 * 60 * 60,
         path: "/",
       });
 
