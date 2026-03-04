@@ -228,9 +228,9 @@ function escapeHtml(str: string): string {
  *   <p><em>path/to/file</em> · language</p>
  *   <hr>
  *   For each symbol:
- *     <h2>symbolName</h2>
+ *     <h2 id="sym-symbolName">symbolName</h2>
  *     <p>kind · lines startLine–endLine</p>
- *     <blockquote>docstring</blockquote>  (if present)
+ *     <blockquote>docstring (with [see: X] converted to links)</blockquote>
  *     <pre><code class="language-xxx">signature / body</code></pre>
  *   If no symbols, just wrap full content in a code block.
  */
@@ -238,6 +238,11 @@ function fileToHtml(file: SyncFilePayload): string {
   const fileName = file.filePath.split("/").pop() ?? file.filePath;
   const lang = file.language ?? detectLanguage(file.filePath);
   const parts: string[] = [];
+
+  // Collect all symbol names in this file for intra-file anchor links
+  const symbolNames = new Set(
+    (file.symbols ?? []).map((s) => s.name)
+  );
 
   // File header
   parts.push(`<h1>${escapeHtml(fileName)}</h1>`);
@@ -249,11 +254,15 @@ function fileToHtml(file: SyncFilePayload): string {
     const lines = file.content.split("\n");
 
     for (const sym of file.symbols) {
-      parts.push(`<h2>${escapeHtml(sym.name)}</h2>`);
+      // Anchor id for navigation — kebab-case to avoid collisions
+      const anchorId = `sym-${sym.name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+      parts.push(`<h2 id="${anchorId}">${escapeHtml(sym.name)}</h2>`);
       parts.push(`<p><strong>${escapeHtml(sym.kind)}</strong> · lines ${sym.startLine}–${sym.endLine}</p>`);
 
       if (sym.docstring) {
-        parts.push(`<blockquote><p>${escapeHtml(sym.docstring)}</p></blockquote>`);
+        // Convert [see: NAME] markers to navigable anchor links
+        const docHtml = convertSeeLinks(escapeHtml(sym.docstring), symbolNames);
+        parts.push(`<blockquote><p>${docHtml}</p></blockquote>`);
       }
 
       if (sym.signature) {
@@ -282,4 +291,30 @@ function fileToHtml(file: SyncFilePayload): string {
   }
 
   return parts.join("");
+}
+
+/**
+ * Convert [see: NAME] markers in an already-escaped docstring into
+ * clickable anchor links pointing to #sym-NAME.
+ *
+ * If the name matches a symbol in the same file it becomes an in-page
+ * anchor; otherwise it stays as styled text so readers know it refers to
+ * another file.
+ */
+function convertSeeLinks(escapedHtml: string, localSymbols: Set<string>): string {
+  // Pattern matches the escaped form: [see: NAME]
+  // After escapeHtml, brackets are still plain [] but &amp;/&lt; etc. may appear in names
+  return escapedHtml.replace(
+    /\[see:\s*([^\]]+)\]/g,
+    (_match, rawName) => {
+      const name = rawName.trim();
+      const anchor = `sym-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+      if (localSymbols.has(name)) {
+        // In-page link
+        return `<a href="#${anchor}" style="color:#7c3aed;text-decoration:underline;font-weight:500">${escapeHtml(name)}</a>`;
+      }
+      // Cross-file reference (no anchor target in this section — render as styled text)
+      return `<strong style="color:#7c3aed">${escapeHtml(name)}</strong>`;
+    }
+  );
 }

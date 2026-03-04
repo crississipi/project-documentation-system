@@ -156,82 +156,138 @@ The `kind` field is a free-form string. Recommended values:
 
 ## How AI Auto-Generates Descriptions
 
-The server converts each file payload into **TipTap-compatible HTML** that
-populates the project section automatically. Here is exactly what gets generated:
+The sync script (`sync-docs.mjs`) includes a built-in AI pipeline powered by
+[OpenRouter](https://openrouter.ai) that automatically generates professional
+documentation for every symbol extracted from your codebase.
+
+### Pipeline Overview
+
+```
+Your Codebase
+     │
+     │  Phase 1 — Extract symbols (regex-based, 10+ languages)
+     ▼
+Symbol Index   ←── Phase 2 — Build cross-reference map of all project symbols
+     │
+     │  Phase 3 — Send each symbol + full file context to OpenRouter AI
+     ▼
+Enriched Payload   (symbols now have docstrings + [see: NAME] links)
+     │
+     │  Phase 4 — POST to /api/v1/projects/{id}/sync
+     ▼
+TipTap HTML in OnTap Dev UI   ([see: NAME] → clickable anchor links)
+```
+
+### Supported Languages
+
+Symbol extraction works for: **JavaScript/TypeScript**, **Python**, **Go**,
+**Rust**, **Java**, **Kotlin**, **C#**, **C/C++**, **PHP**, **Ruby**.
+
+The script uses regex-based extraction to detect:
+- Functions, methods, constructors
+- Classes, interfaces, structs, enums
+- Type aliases, constants, variables
+- Import statements (batched for efficiency)
+
+### AI Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENROUTER_API_KEY` | For AI | — | Your OpenRouter API key (get one at [openrouter.ai/keys](https://openrouter.ai/keys)) |
+| `OPENROUTER_MODEL` | No | `google/gemini-2.0-flash-001` | Any model available on OpenRouter |
+| `AI_CONCURRENCY` | No | `3` | Number of parallel AI requests |
+| `DRY_RUN` | No | — | Set to `1` to preview without syncing |
+
+### Cross-Reference System
+
+When the AI generates a docstring, it automatically detects references to other
+symbols in your project. These are marked as `[see: symbolName]` in the
+docstring text. The server converts these markers into **clickable anchor links**
+in the rendered HTML, so you can jump between related symbols directly.
+
+Example AI-generated docstring:
+
+```
+Validates user input and delegates to the authentication service.
+Calls [see: hashPassword] to securely hash credentials before
+passing them to [see: createSession] for session management.
+```
+
+In the documentation UI, `hashPassword` and `createSession` become clickable
+links that scroll to those symbols' documentation.
+
+### Graceful Fallback (No AI Key)
+
+If `OPENROUTER_API_KEY` is not set, the script still works:
+- Symbols are extracted and sent to the API
+- Files are synced normally
+- Docstrings are simply omitted
+- You can add the key later and re-run to enrich existing docs
+
+### HTML Output
+
+The server converts each file payload into **TipTap-compatible HTML**:
 
 ### Without symbols (plain file)
 
-```
+```html
 <h1>Button.tsx</h1>
 <p><em>src/components/Button.tsx</em> · typescript</p>
 <hr>
 <pre><code class="language-typescript">…full file content…</code></pre>
 ```
 
-### With symbols
+### With symbols + AI docstrings
 
 For every symbol in the `symbols` array the server generates:
 
-```
+```html
 <h1>Button.tsx</h1>
 <p><em>src/components/Button.tsx</em> · typescript</p>
 <hr>
 
-<h2>Button</h2>
-<p>function · lines 12–34</p>
+<h2 id="sym-Button">Button</h2>
+<p><strong>function</strong> · lines 12–34</p>
 <blockquote>
   A reusable button component that supports multiple variants.
+  Accepts props defined in <a href="#sym-ButtonProps">ButtonProps</a>.
 </blockquote>
 <pre><code class="language-typescript">function Button(props: ButtonProps): JSX.Element</code></pre>
 
-<h2>ButtonProps</h2>
-<p>interface · lines 1–11</p>
+<h2 id="sym-ButtonProps">ButtonProps</h2>
+<p><strong>interface</strong> · lines 1–11</p>
 <blockquote>
-  Props accepted by the Button component.
+  Props accepted by the <a href="#sym-Button">Button</a> component.
 </blockquote>
 <pre><code class="language-typescript">interface ButtonProps { … }</code></pre>
 ```
+
+Note how `[see: ButtonProps]` in the docstring is converted to a clickable
+`<a href="#sym-ButtonProps">` link, and each `<h2>` has a matching `id`
+attribute for navigation.
 
 The `docstring` field is the source of the **description block** rendered inside
 `<blockquote>`. This is what appears as the human-readable explanation for each
 symbol in the documentation UI.
 
-### How to populate `docstring`
+### How docstrings are populated
 
-The server does **not** call an external AI service — the "AI" part happens in
-**your extraction script** before you send the payload. You can source the
-`docstring` from:
+The recommended approach is to use the **built-in AI pipeline** in
+`sync-docs.mjs`. When `OPENROUTER_API_KEY` is set, the script automatically:
+
+1. Extracts symbols from every source file (regex-based, multi-language)
+2. Sends each symbol's code + full file context to OpenRouter
+3. Receives a professional docstring following Typedoc/JSDoc/Doxygen/Sphinx patterns
+4. Detects cross-references and inserts `[see: NAME]` markers
+
+You can also source docstrings manually:
 
 | Source | How |
 |--------|-----|
-| **JSDoc / TSDoc** | Parse `/** ... */` comments above functions/classes using `typedoc`, `jsdoc`, or `ts-morph` |
+| **AI (default)** | Set `OPENROUTER_API_KEY` — the sync script handles everything automatically |
+| **JSDoc / TSDoc** | Parse `/** ... */` comments using `typedoc`, `jsdoc`, or `ts-morph` |
 | **Python docstrings** | Use `ast.get_docstring()` or `inspect.getdoc()` |
-| **LLM generation** | Call GPT-4, Claude, or Gemini to summarize each symbol from its source lines |
 | **Manual** | Write descriptions directly in your code comments |
-
-#### Example: LLM-generated docstring (Node.js)
-
-```js
-import { readFileSync } from "fs";
-import OpenAI from "openai";
-
-const openai = new OpenAI();
-
-async function generateDocstring(symbolName, symbolCode) {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "user",
-        content: `Write a one-sentence documentation description for this code:\n\n${symbolCode}`,
-      },
-    ],
-  });
-  return response.choices[0].message.content.trim();
-}
-```
-
-Then pass the result as the `docstring` for each symbol in your payload.
 
 ---
 
@@ -358,146 +414,41 @@ curl -X POST \
   }"
 ```
 
-### Node.js sync script
+### Node.js sync script (with AI documentation)
 
-This example walks the **entire project root**, ignoring generated and
-third-party directories, only including source files, and automatically
-masking `.env` values before they leave your machine.
+Download `sync-docs.mjs` from the OnTap Dev Settings page and place it in your
+project root. The script handles the complete pipeline:
 
-```js
-// sync-docs.mjs
-import { readFileSync, readdirSync } from "fs";
-import { execSync }                  from "child_process";
-import { join, relative, extname, basename } from "path";
+```bash
+# Basic usage — syncs files without AI
+ONTAP_API_KEY=ontap_xxx ONTAP_PROJECT_ID=your-uuid node sync-docs.mjs
 
-const API_KEY    = process.env.ONTAP_API_KEY;
-const PROJECT_ID = process.env.ONTAP_PROJECT_ID;
-const API_BASE   = "https://project-documentation-system.vercel.app";
-const ROOT       = process.cwd(); // project root
+# With AI documentation (recommended)
+ONTAP_API_KEY=ontap_xxx \
+ONTAP_PROJECT_ID=your-uuid \
+OPENROUTER_API_KEY=sk-or-v1-xxx \
+node sync-docs.mjs
 
-// ── Directories to skip entirely ─────────────────────────────────────────────
-const IGNORE_DIRS = new Set([
-  // JavaScript / Node
-  "node_modules", ".npm", ".yarn", ".pnp",
-  // Build outputs
-  ".next", ".nuxt", ".svelte-kit", "dist", "build", "out", ".output",
-  // Test / coverage
-  "coverage", ".nyc_output",
-  // Cache & tooling
-  ".turbo", ".cache", ".parcel-cache", ".vite", ".rollup.cache",
-  // Python
-  "__pycache__", "venv", ".venv", ".tox", ".mypy_cache", ".pytest_cache",
-  // Go / Java / .NET / C++
-  "vendor", ".gradle", "target", "bin", "obj", "Pods",
-  // Version control
-  ".git", ".svn", ".hg",
-  // IDE artefacts
-  ".idea", ".vscode",
-  // Logs & temp
-  "logs", "tmp", "temp",
-]);
+# With custom model and concurrency
+ONTAP_API_KEY=ontap_xxx \
+ONTAP_PROJECT_ID=your-uuid \
+OPENROUTER_API_KEY=sk-or-v1-xxx \
+OPENROUTER_MODEL=anthropic/claude-sonnet-4 \
+AI_CONCURRENCY=5 \
+node sync-docs.mjs
 
-// ── File extensions / names to document ──────────────────────────────────────
-const ALLOWED_EXTENSIONS = new Set([
-  // Web
-  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts",
-  ".vue", ".svelte", ".astro",
-  ".css", ".scss", ".sass", ".less",
-  ".html",
-  // Backend
-  ".py", ".rb", ".go", ".rs", ".java", ".kt", ".kts",
-  ".cs", ".fs", ".cpp", ".c", ".h", ".hpp", ".php",
-  // Config / data
-  ".json", ".yaml", ".yml", ".toml", ".ini",
-  // Docs / markup
-  ".md", ".mdx", ".txt", ".rst",
-  // Query / schema
-  ".sql", ".graphql", ".gql", ".prisma",
-  // Shell
-  ".sh", ".bash", ".zsh", ".fish", ".ps1",
-]);
-
-// .env files included by basename match (values are masked, see below)
-const ENV_BASENAME_RE = /^\.env(\.[\w.]+)?$/;
-
-// ── Files to always skip by name ─────────────────────────────────────────────
-const IGNORE_FILENAMES = new Set([
-  "package-lock.json", "yarn.lock", "bun.lock", "pnpm-lock.yaml",
-  "composer.lock", "Gemfile.lock", "Cargo.lock",
-  ".DS_Store", "Thumbs.db", "desktop.ini",
-  "tsconfig.tsbuildinfo",
-]);
-
-// ── Mask .env values — keeps keys, replaces values with <VALUE> ──────────────
-function maskEnvContent(content) {
-  return content
-    .split("\n")
-    .map((line) => {
-      const trimmed = line.trimStart();
-      // Keep blank lines, comments, and export-only lines unchanged
-      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return line;
-      const eqIdx = line.indexOf("=");
-      const key   = line.slice(0, eqIdx + 1);
-      return `${key}<VALUE>`;
-    })
-    .join("\n");
-}
-
-// ── Recursively collect files skipping ignored dirs ───────────────────────────
-function collectFiles(dir) {
-  const results = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    // Skip ignored directories
-    if (entry.isDirectory()) {
-      if (!IGNORE_DIRS.has(entry.name)) results.push(...collectFiles(join(dir, entry.name)));
-      continue;
-    }
-    if (!entry.isFile()) continue;
-
-    const name = entry.name;
-    if (IGNORE_FILENAMES.has(name)) continue;
-
-    const ext = extname(name).toLowerCase();
-    const isEnvFile = ENV_BASENAME_RE.test(name);
-    if (!isEnvFile && !ALLOWED_EXTENSIONS.has(ext)) continue;
-
-    results.push(join(dir, name));
-  }
-  return results;
-}
-
-// ── Build payload ─────────────────────────────────────────────────────────────
-const filePaths = collectFiles(ROOT);
-console.log(`Collecting ${filePaths.length} files…`);
-
-const files = filePaths.map((absPath) => {
-  const filePath = relative(ROOT, absPath).replace(/\\/g, "/");
-  const isEnvFile = ENV_BASENAME_RE.test(basename(filePath));
-
-  let content = readFileSync(absPath, "utf-8");
-  if (isEnvFile) content = maskEnvContent(content); // strip real secrets
-
-  return { filePath, content };
-});
-
-// ── Sync ──────────────────────────────────────────────────────────────────────
-const res = await fetch(`${API_BASE}/api/v1/projects/${PROJECT_ID}/sync`, {
-  method: "POST",
-  headers: {
-    "Authorization": `Bearer ${API_KEY}`,
-    "Content-Type":  "application/json",
-  },
-  body: JSON.stringify({
-    files,
-    commitHash: execSync("git rev-parse HEAD").toString().trim(),
-    branch:     execSync("git branch --show-current").toString().trim(),
-  }),
-});
-
-const json = await res.json();
-console.log(json.message);
-// → "Sync complete: 42 sections created, 7 updated."
+# Dry run — preview extracted symbols without syncing
+DRY_RUN=1 node sync-docs.mjs
 ```
+
+The script:
+
+1. **Walks** the project tree, skipping `node_modules`, build outputs, lock files, etc.
+2. **Masks** `.env` values (keys kept, values replaced with `<VALUE>`)
+3. **Extracts** symbols from 10+ languages using regex-based parsing
+4. **Builds** a cross-reference index of all symbol names
+5. **Generates** AI docstrings via OpenRouter (if key is set)
+6. **Syncs** the enriched payload to OnTap Dev
 
 ---
 
@@ -591,10 +542,12 @@ jobs:
         env:
           ONTAP_API_KEY: ${{ secrets.ONTAP_API_KEY }}
           ONTAP_PROJECT_ID: ${{ secrets.ONTAP_PROJECT_ID }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: node sync-docs.mjs
 ```
 
-Store `ONTAP_API_KEY` and `ONTAP_PROJECT_ID` in **GitHub → Repository → Settings → Secrets and variables → Actions**.
+Store `ONTAP_API_KEY`, `ONTAP_PROJECT_ID`, and optionally `OPENROUTER_API_KEY`
+in **GitHub → Repository → Settings → Secrets and variables → Actions**.
 
 ### GitLab CI
 
@@ -609,6 +562,7 @@ sync-docs:
   variables:
     ONTAP_API_KEY: $ONTAP_API_KEY
     ONTAP_PROJECT_ID: $ONTAP_PROJECT_ID
+    OPENROUTER_API_KEY: $OPENROUTER_API_KEY
 ```
 
 ---

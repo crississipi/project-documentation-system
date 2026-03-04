@@ -1231,6 +1231,85 @@ export default function SettingsPage() {
                 </p>
               </div>
             </SectionCard>
+
+            {/* AI Documentation */}
+            <SectionCard title="AI-Powered Documentation" description="Automatically generate professional descriptions for every function, class, import, and variable using OpenRouter AI">
+              <div className="space-y-5 text-sm">
+                {/* How it works */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">How it works</p>
+                  <p className="text-slate-500 leading-relaxed">
+                    When you set an <strong className="text-slate-600">OpenRouter API key</strong>, the sync script sends each symbol&apos;s source code
+                    (along with the full file for context) to an AI model. The model returns a professional docstring following
+                    <strong className="text-slate-600"> Typedoc / JSDoc / Doxygen / Sphinx</strong> conventions. Cross-references to other symbols
+                    are automatically detected and rendered as navigable links in the documentation UI.
+                  </p>
+                </div>
+
+                {/* Setup */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Setup — environment variables</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-0.5">
+                    <p className="text-slate-400"># Required — your OpenRouter key (get one at openrouter.ai/keys)</p>
+                    <p className="text-emerald-400">OPENROUTER_API_KEY=<span className="text-yellow-300">sk-or-v1-…</span></p>
+                    <p className="text-slate-300">&nbsp;</p>
+                    <p className="text-slate-400"># Optional — override the default model (default: google/gemini-2.0-flash-001)</p>
+                    <p className="text-emerald-400">OPENROUTER_MODEL=<span className="text-yellow-300">anthropic/claude-sonnet-4</span></p>
+                    <p className="text-slate-300">&nbsp;</p>
+                    <p className="text-slate-400"># Optional — parallel AI requests (default: 3)</p>
+                    <p className="text-emerald-400">AI_CONCURRENCY=<span className="text-yellow-300">5</span></p>
+                  </div>
+                </div>
+
+                {/* Pipeline */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">4-phase pipeline</p>
+                  <div className="space-y-2">
+                    {[
+                      { step: "1", title: "Extract", desc: "Regex-based symbol extraction for 10+ languages (JS/TS, Python, Go, Rust, Java, C#, PHP, Ruby, C/C++, Kotlin)" },
+                      { step: "2", title: "Index", desc: "Builds a cross-reference map of all symbol names across every file in the project" },
+                      { step: "3", title: "Document", desc: "Sends each symbol + full file context to OpenRouter AI; generates professional docstrings with [see: Name] cross-links" },
+                      { step: "4", title: "Sync", desc: "Pushes enriched payloads (symbols + AI docstrings) to the OnTap Dev API; server converts [see:] markers to clickable links" },
+                    ].map((p) => (
+                      <div key={p.step} className="flex items-start gap-3">
+                        <span className="shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center">{p.step}</span>
+                        <div>
+                          <p className="text-slate-700 font-medium text-xs">{p.title}</p>
+                          <p className="text-slate-500 text-xs leading-relaxed">{p.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cross-references */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Cross-reference links</p>
+                  <p className="text-slate-500 leading-relaxed text-xs">
+                    When a function calls or references another symbol, the AI docstring includes <code className="bg-slate-100 px-1 rounded text-violet-600">[see: symbolName]</code> markers.
+                    The server automatically converts these into clickable anchor links so you can jump between related symbols directly in the documentation.
+                  </p>
+                </div>
+
+                {/* Graceful fallback */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">No AI key? No problem</p>
+                  <p className="text-slate-500 leading-relaxed text-xs">
+                    If <code className="bg-slate-100 px-1 rounded text-slate-600">OPENROUTER_API_KEY</code> is not set, the script still runs — it extracts symbols and syncs
+                    files to OnTap Dev, just without AI-generated descriptions. You can add the key later and re-run.
+                  </p>
+                </div>
+
+                {/* Dry run */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Dry run mode</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-0.5">
+                    <p className="text-slate-400"># Preview what will be synced without calling the API</p>
+                    <p className="text-emerald-400">DRY_RUN=1 node sync-docs.mjs</p>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
           </>
         )}
 
