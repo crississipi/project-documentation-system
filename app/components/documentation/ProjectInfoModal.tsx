@@ -12,6 +12,7 @@ import {
   BiUser,
   BiFile,
   BiFolder,
+  BiTrash,
 } from "react-icons/bi";
 import type { ProjectSummary, ProjectVisibility } from "@/types";
 import { apiFetch } from "@/lib/apiFetch";
@@ -20,12 +21,16 @@ interface ProjectInfoModalProps {
   project: ProjectSummary;
   onClose: () => void;
   onVisibilityChange: (visibility: ProjectVisibility) => void;
+  onDelete?: () => void;
 }
 
-export function ProjectInfoModal({ project, onClose, onVisibilityChange }: ProjectInfoModalProps) {
+export function ProjectInfoModal({ project, onClose, onVisibilityChange, onDelete }: ProjectInfoModalProps) {
   const [copied, setCopied] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // ─── Copy project ID ──────────────────────────────
   const handleCopyId = async () => {
@@ -46,7 +51,27 @@ export function ProjectInfoModal({ project, onClose, onVisibilityChange }: Proje
     }
   };
 
-  // ─── Toggle visibility ────────────────────────────
+  // ─── Delete project ───────────────────────────────
+  const handleDelete = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await apiFetch(`/api/projects/${project.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onClose();
+        onDelete?.();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setDeleteError(json.message ?? "Failed to delete project.");
+        setDeleting(false);
+      }
+    } catch {
+      setDeleteError("Network error. Please try again.");
+      setDeleting(false);
+    }
+  };
+
+  // ─── Toggle visibility ──────────────────────────
   const handleToggleVisibility = async () => {
     const next: ProjectVisibility = project.visibility === "PUBLIC" ? "PRIVATE" : "PUBLIC";
     setTogglingVisibility(true);
@@ -227,6 +252,61 @@ export function ProjectInfoModal({ project, onClose, onVisibilityChange }: Proje
                 <div className="px-4 py-3 bg-white">
                   <p className="text-xs text-slate-500 mb-1">Description</p>
                   <p className="text-xs text-slate-700 leading-relaxed">{project.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Danger Zone ────────────────────────────── */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Danger Zone</p>
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              {!confirmDelete ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900">Delete Project</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Permanently remove this project and all its content.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="shrink-0 flex items-center gap-1.5 px-3 h-7 text-xs font-medium rounded-lg bg-white border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <BiTrash className="text-sm" aria-hidden="true" />
+                    Delete
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <p className="text-xs font-medium text-red-700">
+                    Are you sure? This cannot be undone.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {deleting ? (
+                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <BiTrash className="text-sm" aria-hidden="true" />
+                      )}
+                      {deleting ? "Deleting…" : "Yes, delete"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setConfirmDelete(false); setDeleteError(null); }}
+                      disabled={deleting}
+                      className="px-3 h-7 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {deleteError && (
+                    <p className="text-xs text-red-600">{deleteError}</p>
+                  )}
                 </div>
               )}
             </div>

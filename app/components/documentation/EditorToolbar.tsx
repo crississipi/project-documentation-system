@@ -10,6 +10,8 @@ import {
   BiSolidQuoteAltLeft,
 } from "react-icons/bi";
 import { cn } from "@/lib/cn";
+import DocSearch from "./DocSearch";
+import type { SectionWithBlocks } from "@/types";
 
 interface ToolbarButtonProps {
   onClick: () => void;
@@ -43,9 +45,11 @@ function VDivider() {
 
 interface EditorToolbarProps {
   editor: Editor | null;
+  sections: SectionWithBlocks[];
+  onNavigate: (id: string) => void;
 }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, sections, onNavigate }: EditorToolbarProps) {
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingRef = useRef<HTMLDivElement>(null);
 
@@ -63,11 +67,14 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     return (
       <div
         data-pdf-hide="true"
-        className="flex items-center w-full shrink-0 h-10 border-b border-slate-200 bg-white px-3"
+        className="flex items-center justify-between w-full shrink-0 h-10 border-b border-slate-200 bg-white px-3 gap-2"
       >
         <span className="text-[10px] text-slate-300 whitespace-nowrap">
           Click a section to enable editing
         </span>
+        <div className="shrink-0">
+          <DocSearch sections={sections} onNavigate={onNavigate} />
+        </div>
       </div>
     );
   }
@@ -228,6 +235,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           <BiMinus />
         </ToolbarButton>
 
+      </div>
+
+      {/* Search — right side, outside overflow-x-auto so dropdown is never clipped */}
+      <div className="shrink-0 flex items-center px-2 border-l border-slate-100">
+        <DocSearch sections={sections} onNavigate={onNavigate} />
       </div>
     </div>
   );
