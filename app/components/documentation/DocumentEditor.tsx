@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditor, EditorContent } from "@tiptap/react";
+import { mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
@@ -13,6 +14,18 @@ import { useEffect } from "react";
 import type { Editor } from "@tiptap/react";
 
 const lowlight = createLowlight(common);
+
+// Extend CodeBlockLowlight so the rendered <pre> carries spellcheck="false".
+// This prevents browser spellcheck squiggles inside code blocks.
+const NoSpellcheckCodeBlock = CodeBlockLowlight.extend({
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "pre",
+      mergeAttributes(HTMLAttributes, { spellcheck: "false" }),
+      ["code", { class: node.attrs.language ? `language-${node.attrs.language}` : undefined }, 0],
+    ];
+  },
+});
 
 interface DocumentEditorProps {
   sectionId: string;
@@ -34,14 +47,15 @@ export function DocumentEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        codeBlock: false, // replaced by CodeBlockLowlight
+        codeBlock: false, // replaced by NoSpellcheckCodeBlock
+        code: { HTMLAttributes: { spellcheck: "false" } }, // no squiggles in inline code
         heading: { levels: [1, 2, 3, 4, 5, 6] },
       }),
       Underline,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Link.configure({ openOnClick: false }),
-      CodeBlockLowlight.configure({
+      NoSpellcheckCodeBlock.configure({
         lowlight,
         defaultLanguage: "javascript",
         HTMLAttributes: { class: "code-block" },

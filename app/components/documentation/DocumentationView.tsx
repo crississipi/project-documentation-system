@@ -260,11 +260,14 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Left Toolbar Sidebar — formatting tools */}
-        <div className="hidden sm:block sticky top-0 h-full z-10">
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Formatting Toolbar — horizontal strip */}
+        <div className="hidden sm:block shrink-0 z-10">
           <EditorToolbar editor={activeEditor} />
         </div>
+
+        {/* Doc area + sections panel */}
+        <div className="flex flex-1 overflow-hidden relative">
 
         {/* Scrollable Document Area */}
         <div id="doc-scroll-area" className="flex-1 overflow-y-auto py-6 sm:py-8 px-2 sm:px-4">
@@ -325,7 +328,8 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
           onMoveSection={moveSection}
         />
         </div>{/* end slide wrapper */}
-      </div>{/* end main content flex */}
+      </div>{/* end doc area + sections panel flex */}
+      </div>{/* end main content flex-col */}
 
       {showShare && (
         <ShareModal

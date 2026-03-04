@@ -118,6 +118,9 @@ const IGNORE_FILENAMES = new Set([
   "composer.lock", "Gemfile.lock", "Cargo.lock",
   ".DS_Store", "Thumbs.db", "desktop.ini",
   "tsconfig.tsbuildinfo",
+  // ── Auto-excluded — not part of the documented codebase ──
+  "sync-docs.mjs",    // this CLI script itself
+  ".env.example",     // config template — no functional logic to document
 ]);
 
 /** Languages that support symbol extraction. */
@@ -497,6 +500,122 @@ function extractSignature(line, kind) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// File ordering — groups files into documentation sections for professional
+// structure: Setup → Frontend → Backend → Testing → Other
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Return a sort category+priority for a file path.
+ * Lower numbers appear earlier in the documentation.
+ */
+function getFileCategory(filePath) {
+  const p = filePath.toLowerCase().replace(/\\/g, "/");
+  const base = p.split("/").pop() ?? p;
+
+  // ── 0: Setup & Configuration ──────────────────────────────────────────────
+  if (
+    base === "package.json" ||
+    base.startsWith("tsconfig") ||
+    base.startsWith("next.config") ||
+    base.startsWith("postcss.config") ||
+    base.startsWith("tailwind.config") ||
+    base.startsWith("eslint.config") ||
+    base.startsWith("vite.config") ||
+    base.startsWith("vitest.config") ||
+    base.startsWith("jest.config") ||
+    base.startsWith("babel.config") ||
+    base.startsWith(".babelrc") ||
+    base.startsWith(".eslintrc") ||
+    base.startsWith(".prettierrc") ||
+    base === "readme.md" ||
+    base === "schema.prisma" ||
+    base === "prisma.schema" ||
+    p.includes("/prisma/") ||
+    p === "prisma/schema.prisma"
+  ) return 0;
+
+  // ── 1: Frontend — components, pages, hooks, context, ui ──────────────────
+  if (
+    p.startsWith("app/") ||
+    p.startsWith("pages/") ||
+    p.startsWith("src/app/") ||
+    p.startsWith("src/pages/") ||
+    p.includes("/components/") ||
+    p.includes("/hooks/") ||
+    p.includes("/context/") ||
+    p.includes("/providers/") ||
+    p.includes("/ui/") ||
+    p.includes("/layouts/") ||
+    p.includes("/views/") ||
+    p.includes("/screens/") ||
+    p.includes("/features/") ||
+    p.startsWith("components/") ||
+    p.startsWith("hooks/") ||
+    p.startsWith("context/")
+  ) return 1;
+
+  // ── 2: Backend — api routes, lib, services, middleware, db ────────────────
+  if (
+    p.includes("/api/") ||
+    p.startsWith("api/") ||
+    p.startsWith("lib/") ||
+    p.startsWith("src/lib/") ||
+    p.startsWith("server/") ||
+    p.startsWith("src/server/") ||
+    p.includes("/services/") ||
+    p.includes("/middleware/") ||
+    p.includes("/controllers/") ||
+    p.includes("/repositories/") ||
+    p.includes("/routes/") ||
+    p.includes("/db/") ||
+    p.includes("/database/")
+  ) return 2;
+
+  // ── 3: Shared types & utilities ───────────────────────────────────────────
+  if (
+    p.startsWith("types/") ||
+    p.startsWith("src/types/") ||
+    p.startsWith("utils/") ||
+    p.startsWith("src/utils/") ||
+    p.includes("/types/") ||
+    p.includes("/utils/") ||
+    p.includes("/helpers/") ||
+    p.includes("/constants/")
+  ) return 3;
+
+  // ── 4: Tests ──────────────────────────────────────────────────────────────
+  if (
+    p.includes("/test/") ||
+    p.includes("/tests/") ||
+    p.includes("/__tests__/") ||
+    p.includes("/spec/") ||
+    p.includes("/e2e/") ||
+    p.includes("/mocks/") ||
+    base.includes(".test.") ||
+    base.includes(".spec.") ||
+    base.endsWith(".test.ts") ||
+    base.endsWith(".spec.ts")
+  ) return 4;
+
+  // ── 5: Other supporting files (scripts, tooling, etc.) ───────────────────
+  return 5;
+}
+
+/**
+ * Sort an array of file data objects into the documentation section order:
+ * Setup/Config → Frontend → Backend → Types/Utils → Tests → Other.
+ * Within each category, files are sorted alphabetically by path.
+ */
+function sortFilesByCategory(fileDataArray) {
+  return [...fileDataArray].sort((a, b) => {
+    const ca = getFileCategory(a.filePath);
+    const cb = getFileCategory(b.filePath);
+    if (ca !== cb) return ca - cb;
+    return a.filePath.localeCompare(b.filePath);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Cross-reference detection
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -565,40 +684,34 @@ async function generateDocstring(symbol, fileContent, filePath, references, alre
     ? `\n\nThe following symbols have ALREADY been documented elsewhere. Do NOT re-explain them in detail. Instead, mention them briefly and add a [see: NAME] link:\n${alreadyDocumented.map(n => `- ${n}`).join("\n")}`
     : "";
 
-  const prompt = `You are a senior technical writer creating reference documentation for a software project.
-Analyze the source file below and write a clear, practical description for the highlighted symbol.
+  const prompt = `You are a technical writer documenting a software project. Write a short, clear description for the symbol below.
 
 FILE: ${filePath}
 ${"─".repeat(60)}
-${fileContent.length > 15000 ? fileContent.slice(0, 15000) + "\n// … (file truncated for brevity)" : fileContent}
+${fileContent.length > 15000 ? fileContent.slice(0, 15000) + "\n// … (truncated)" : fileContent}
 ${"─".repeat(60)}
 
-SYMBOL TO DOCUMENT:
+SYMBOL:
   Name: ${symbol.name}
   Kind: ${symbol.kind}
   Lines: ${symbol.startLine}–${symbol.endLine}
   Signature: ${symbol.signature}
 
-SOURCE CODE:
+CODE:
 \`\`\`
 ${symbol.body.length > 4000 ? symbol.body.slice(0, 4000) + "\n// … truncated" : symbol.body}
 \`\`\`
 ${refSection}${dedupSection}
 
-WRITING RULES:
-1. Explain what this ${symbol.kind} does in clear, practical terms. Avoid overly academic or highly technical jargon.
-2. For functions/methods: describe what it accepts, what it returns, any side effects, and when you would use it.
-3. For classes/interfaces/types: describe its purpose, its key members, and how it fits into the broader system.
-4. For variables/constants: describe the stored value, its purpose, and where it is consumed.
-5. For imports: explain what is being imported and why it is needed in this file.
-6. Use present tense and active voice ("Handles…", "Returns…", "Stores…").
-7. If this symbol calls or uses other project symbols, add a [see: symbolName] marker for each — these become clickable links in the documentation.
-8. If a referenced symbol was already documented, do NOT re-explain it — just mention it briefly with a [see: NAME] link.
-9. Do NOT output code fences, markdown headers, the symbol name as a title, or filler like "This function…". Start directly with the action verb.
-10. Keep it 1–4 sentences for simple symbols, up to 6 for complex ones. Be detailed but concise.
-11. Match the quality and tone of professional Typedoc / JSDoc / Doxygen / Sphinx documentation output.
+RULES:
+1. Start with an action verb. Explain what it does in plain, practical language — avoid unnecessary jargon.
+2. Functions: what it does, inputs, return value, side effects. Classes/interfaces: purpose and key members. Variables: what value it holds and why. Imports: what is imported and why.
+3. Use present tense and active voice ("Handles…", "Returns…", "Stores…").
+4. For symbols this code interacts with, add [see: symbolName] — these become clickable links.
+5. Do NOT restate the symbol name as a title. No code fences, no markdown headers, no filler phrases like "This function…".
+6. Length: 1–3 sentences for simple symbols, up to 5 for complex ones. Be concise.
 
-Respond with ONLY the documentation text — no JSON, no markdown formatting, just the plain description.`;
+Respond with ONLY the plain description text — no JSON, no markdown.`;
 
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -755,7 +868,11 @@ if (AI_ENABLED && totalSymbols > 0) {
 
 // ── Phase 4: Sync to OnTap Dev ───────────────────────────────────────────────
 console.log("\n📤 Phase 4: Syncing to OnTap Dev…");
-const files = allFileData.map(({ filePath, content, symbols }) => ({
+
+// Sort files into professional documentation order before sending
+const sortedFileData = sortFilesByCategory(allFileData);
+
+const files = sortedFileData.map(({ filePath, content, symbols }) => ({
   filePath,
   content,
   ...(symbols.length > 0 && {

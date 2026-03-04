@@ -27,7 +27,7 @@ function ToolbarButton({ onClick, active, title, children, disabled }: ToolbarBu
       disabled={disabled}
       onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       className={cn(
-        "w-7 h-7 flex items-center justify-center rounded text-sm transition-colors",
+        "w-9 h-9 flex items-center justify-center rounded-lg text-base transition-colors shrink-0",
         active ? "bg-violet-100 text-violet-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
         disabled && "opacity-30 cursor-not-allowed"
       )}
@@ -37,8 +37,8 @@ function ToolbarButton({ onClick, active, title, children, disabled }: ToolbarBu
   );
 }
 
-function HDivider() {
-  return <div className="h-px w-full bg-slate-200 my-1" />;
+function VDivider() {
+  return <div className="w-px self-stretch bg-slate-200 mx-1 shrink-0" />;
 }
 
 interface EditorToolbarProps {
@@ -49,7 +49,6 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingRef = useRef<HTMLDivElement>(null);
 
-  // Close heading dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (headingRef.current && !headingRef.current.contains(e.target as Node)) {
@@ -64,68 +63,65 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     return (
       <div
         data-pdf-hide="true"
-        className="flex flex-col items-center gap-0.5 py-3 px-1 w-10 shrink-0 border-r border-slate-200 bg-white"
+        className="flex items-center w-full shrink-0 h-10 border-b border-slate-200 bg-white px-3"
       >
-        <span className="text-[10px] text-slate-300 text-center leading-tight mt-2">Click a section to edit</span>
+        <span className="text-[10px] text-slate-300 whitespace-nowrap">
+          Click a section to enable editing
+        </span>
       </div>
     );
   }
 
+  // Capture after null-guard so TypeScript knows `ed` is always non-null in JSX closures
+  const ed = editor;
+
   const activeHeading = ([1, 2, 3, 4, 5, 6] as const).find(
-    (level) => editor.isActive("heading", { level })
+    (level) => ed.isActive("heading", { level })
   );
 
   const setLink = () => {
     const url = window.prompt("Enter URL:");
-    if (!url) return;
+    if (url === null) return;
     if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      ed.chain().focus().extendMarkRange("link").unsetLink().run();
       return;
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    ed.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   };
 
   return (
     <div
       data-pdf-hide="true"
-      className="flex flex-col items-center gap-0.5 py-2 px-1 w-10 shrink-0 border-r border-slate-200 bg-white overflow-y-auto"
+      className="flex items-stretch w-full shrink-0 h-10 border-b border-slate-200 bg-white"
     >
-      {/* Undo / Redo */}
-      <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo" disabled={!editor.can().undo()}>
-        <BiUndo />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo" disabled={!editor.can().redo()}>
-        <BiRedo />
-      </ToolbarButton>
-
-      <HDivider />
-
-      {/* Heading dropdown */}
-      <div className="relative" ref={headingRef}>
+      {/* Heading selector — kept OUTSIDE the overflow-x-auto strip so the dropdown is never clipped */}
+      <div
+        className="relative shrink-0 flex items-center px-1.5 border-r border-slate-100"
+        ref={headingRef}
+      >
         <button
           type="button"
-          onMouseDown={(e) => { e.preventDefault(); setHeadingOpen(!headingOpen); }}
+          onMouseDown={(e) => { e.preventDefault(); setHeadingOpen((v) => !v); }}
           className={cn(
-            "flex items-center justify-center w-7 h-7 text-[10px] font-bold rounded transition-colors",
-            activeHeading
-              ? "bg-violet-100 text-violet-700"
-              : "text-slate-500 hover:bg-slate-100"
+            "flex items-center justify-center w-9 h-9 text-xs font-bold rounded-lg transition-colors",
+            activeHeading ? "bg-violet-100 text-violet-700" : "text-slate-500 hover:bg-slate-100"
           )}
         >
           {activeHeading ? `H${activeHeading}` : "H"}
         </button>
+
         {headingOpen && (
-          <div className="absolute top-0 left-full ml-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 min-w-[120px]">
+          <div className="absolute top-full mt-1 left-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 w-28">
             <button
               type="button"
               onMouseDown={(e) => {
                 e.preventDefault();
-                editor.chain().focus().setParagraph().run();
+                ed.chain().focus().setParagraph().run();
                 setHeadingOpen(false);
               }}
               className={cn(
-                "w-full text-left px-3 py-1 text-xs hover:bg-slate-50 transition-colors",
-                !activeHeading ? "bg-violet-50 text-violet-700" : "text-slate-600"
+                "w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors",
+                !activeHeading ? "bg-violet-50 text-violet-700 font-medium" : "text-slate-600"
               )}
             >
               Normal
@@ -136,14 +132,14 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
                 type="button"
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  editor.chain().focus().toggleHeading({ level }).run();
+                  ed.chain().focus().toggleHeading({ level }).run();
                   setHeadingOpen(false);
                 }}
                 className={cn(
-                  "w-full text-left px-3 py-1 hover:bg-slate-50 transition-colors text-xs",
-                  editor.isActive("heading", { level })
+                  "w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors",
+                  ed.isActive("heading", { level })
                     ? "bg-violet-50 text-violet-700 font-semibold"
-                    : "text-slate-600",
+                    : "text-slate-600"
                 )}
               >
                 H{level}
@@ -153,80 +149,86 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         )}
       </div>
 
-      <HDivider />
+      {/* Scrollable button strip — horizontal scroll if viewport is narrow */}
+      <div className="flex flex-row items-center gap-0.5 px-2 flex-1 overflow-x-auto">
 
-      {/* Text formatting */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Bold">
-        <BiBold />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="Italic">
-        <BiItalic />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive("underline")} title="Underline">
-        <BiUnderline />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} title="Strikethrough">
-        <BiStrikethrough />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleHighlight().run()} active={editor.isActive("highlight")} title="Highlight">
-        <BiHighlight />
-      </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().undo().run()} title="Undo" disabled={!ed.can().undo()}>
+          <BiUndo />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().redo().run()} title="Redo" disabled={!ed.can().redo()}>
+          <BiRedo />
+        </ToolbarButton>
 
-      <HDivider />
+        <VDivider />
 
-      {/* Alignment */}
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign("left").run()} active={editor.isActive({ textAlign: "left" })} title="Align Left">
-        <BiAlignLeft />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign("center").run()} active={editor.isActive({ textAlign: "center" })} title="Center">
-        <BiAlignMiddle />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign("right").run()} active={editor.isActive({ textAlign: "right" })} title="Align Right">
-        <BiAlignRight />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign("justify").run()} active={editor.isActive({ textAlign: "justify" })} title="Justify">
-        <BiAlignJustify />
-      </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleBold().run()} active={ed.isActive("bold")} title="Bold">
+          <BiBold />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleItalic().run()} active={ed.isActive("italic")} title="Italic">
+          <BiItalic />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleUnderline().run()} active={ed.isActive("underline")} title="Underline">
+          <BiUnderline />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleStrike().run()} active={ed.isActive("strike")} title="Strikethrough">
+          <BiStrikethrough />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleHighlight().run()} active={ed.isActive("highlight")} title="Highlight">
+          <BiHighlight />
+        </ToolbarButton>
 
-      <HDivider />
+        <VDivider />
 
-      {/* Lists */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Bullet List">
-        <BiListUl />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Numbered List">
-        <BiListOl />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} title="Blockquote">
-        <BiSolidQuoteAltLeft />
-      </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().setTextAlign("left").run()} active={ed.isActive({ textAlign: "left" })} title="Align Left">
+          <BiAlignLeft />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().setTextAlign("center").run()} active={ed.isActive({ textAlign: "center" })} title="Center">
+          <BiAlignMiddle />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().setTextAlign("right").run()} active={ed.isActive({ textAlign: "right" })} title="Align Right">
+          <BiAlignRight />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().setTextAlign("justify").run()} active={ed.isActive({ textAlign: "justify" })} title="Justify">
+          <BiAlignJustify />
+        </ToolbarButton>
 
-      <HDivider />
+        <VDivider />
 
-      {/* Code */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive("code")} title="Inline Code">
-        <BiCode />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")} title="Code Block">
-        <BiCodeBlock />
-      </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleBulletList().run()} active={ed.isActive("bulletList")} title="Bullet List">
+          <BiListUl />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleOrderedList().run()} active={ed.isActive("orderedList")} title="Numbered List">
+          <BiListOl />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleBlockquote().run()} active={ed.isActive("blockquote")} title="Blockquote">
+          <BiSolidQuoteAltLeft />
+        </ToolbarButton>
 
-      <HDivider />
+        <VDivider />
 
-      {/* Link */}
-      <ToolbarButton onClick={setLink} active={editor.isActive("link")} title="Add Link">
-        <BiLink />
-      </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().unsetLink().run()} title="Remove Link" disabled={!editor.isActive("link")}>
-        <BiUnlink />
-      </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleCode().run()} active={ed.isActive("code")} title="Inline Code">
+          <BiCode />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().toggleCodeBlock().run()} active={ed.isActive("codeBlock")} title="Code Block">
+          <BiCodeBlock />
+        </ToolbarButton>
 
-      <HDivider />
+        <VDivider />
 
-      {/* Horizontal Rule */}
-      <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">
-        <BiMinus />
-      </ToolbarButton>
+        <ToolbarButton onClick={setLink} active={ed.isActive("link")} title="Add Link">
+          <BiLink />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => ed.chain().focus().unsetLink().run()} title="Remove Link" disabled={!ed.isActive("link")}>
+          <BiUnlink />
+        </ToolbarButton>
+
+        <VDivider />
+
+        <ToolbarButton onClick={() => ed.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">
+          <BiMinus />
+        </ToolbarButton>
+
+      </div>
     </div>
   );
 }
