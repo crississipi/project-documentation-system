@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BiCheckCircle, BiErrorCircle, BiLoaderAlt } from "react-icons/bi";
+import { BiCheckCircle, BiErrorCircle, BiLoaderAlt, BiLogIn } from "react-icons/bi";
 import { apiFetch } from "@/lib/apiFetch";
+import { useAuth } from "@/app/context/AuthContext";
 
 const ROLE_LABELS: Record<string, string> = {
   VIEWER: "View only",
@@ -24,6 +25,7 @@ export default function InvitePage() {
   const params = useParams<{ token: string }>();
   const token = params?.token ?? "";
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "accepting" | "accepted" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -106,14 +108,31 @@ export default function InvitePage() {
             <p className="text-xs text-slate-400 mb-6">
               Sent to <strong>{info.invitedEmail}</strong>
             </p>
-            <button
-              type="button"
-              onClick={accept}
-              disabled={state === "accepting"}
-              className="w-full py-3 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-60 transition-colors"
-            >
-              {state === "accepting" ? "Accepting…" : "Accept Invitation"}
-            </button>
+            {authLoading ? (
+              <div className="w-full py-3 flex items-center justify-center">
+                <BiLoaderAlt className="text-xl text-violet-400 animate-spin" />
+              </div>
+            ) : user ? (
+              <button
+                type="button"
+                onClick={accept}
+                disabled={state === "accepting"}
+                className="w-full py-3 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-60 transition-colors"
+              >
+                {state === "accepting" ? "Accepting…" : "Accept Invitation"}
+              </button>
+            ) : (
+              <>
+                <p className="text-xs text-amber-600 mb-3">You need to log in to accept this invitation.</p>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/login?redirect=/invite/${token}`)}
+                  className="w-full py-3 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <BiLogIn className="text-lg" /> Log in to Accept
+                </button>
+              </>
+            )}
           </>
         )}
 

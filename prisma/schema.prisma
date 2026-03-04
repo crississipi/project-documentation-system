@@ -44,6 +44,7 @@ model User {
   projects           Project[]
   sessions           Session[]
   collaborations     ProjectCollaborator[]
+  apiKeys            ApiKey[]
 
   @@index([email])
 }
@@ -90,6 +91,7 @@ model Project {
   sections          Section[]
   tableOfContents   TableOfContents?
   collaborators     ProjectCollaborator[]
+  docSnapshots      DocSnapshot[]
 
   @@index([authorId])
   @@index([visibility])
@@ -201,4 +203,109 @@ enum CollaboratorRole {
 enum CollaboratorStatus {
   PENDING
   ACCEPTED
+}
+
+// ─────────────────────────────────────────────
+// API KEYS (for CLI / automation)
+// ─────────────────────────────────────────────
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String                          // human-readable label, e.g. "CI Pipeline"
+  prefix      String    @db.VarChar(12)       // first 8 chars of the key (for display)
+  hashedKey   String    @unique               // SHA-256 hash of the full key
+  scopes      String    @db.Text              // JSON array of scope strings, e.g. ["sync","read"]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usageLogs   ApiUsageLog[]
+
+  @@index([userId])
+  @@index([hashedKey])
+  @@index([prefix])
+}
+
+// ─────────────────────────────────────────────
+// API USAGE LOGGING
+// ─────────────────────────────────────────────
+
+model ApiUsageLog {
+  id        String   @id @default(uuid())
+  apiKeyId  String
+  endpoint  String                         // e.g. "/api/v1/projects/:id/sync"
+  method    String   @db.VarChar(10)       // GET, POST, PUT, etc.
+  status    Int                            // HTTP status code
+  ip        String?  @db.VarChar(45)       // IPv4 or IPv6
+  createdAt DateTime @default(now())
+
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([apiKeyId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// DOC SNAPSHOTS (automation sync tracking)
+// ─────────────────────────────────────────────
+
+model DocSnapshot {
+  id          String     @id @default(uuid())
+  projectId   String
+  commitHash  String?                      // git commit if available
+  branch      String?                      // git branch name
+  totalFiles  Int        @default(0)
+  status      SyncStatus @default(PENDING)
+  errorLog    String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  files       DocFile[]
+
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+model DocFile {
+  id          String      @id @default(uuid())
+  snapshotId  String
+  filePath    String      @db.VarChar(500)   // relative path in the repo
+  fileHash    String      @db.VarChar(64)    // SHA-256 of file content
+  language    String?                        // detected programming language
+  sectionId   String?                        // linked Section in the project
+  createdAt   DateTime    @default(now())
+
+  snapshot    DocSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  symbols     DocSymbol[]
+
+  @@index([snapshotId])
+  @@index([filePath])
+}
+
+model DocSymbol {
+  id          String   @id @default(uuid())
+  docFileId   String
+  name        String                       // function/class/method name
+  kind        String   @db.VarChar(30)     // "function", "class", "method", "interface", etc.
+  startLine   Int
+  endLine     Int
+  signature   String?  @db.Text            // full signature
+  docstring   String?  @db.Text            // extracted JSDoc / docstring
+  createdAt   DateTime @default(now())
+
+  docFile     DocFile  @relation(fields: [docFileId], references: [id], onDelete: Cascade)
+
+  @@index([docFileId])
+}
+
+enum SyncStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

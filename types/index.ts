@@ -175,3 +175,53 @@ export interface NewProjectFormData {
   docType: string;
   paperSize: PaperSize;
 }
+
+// ─── API Keys ────────────────────────────────────
+export type SyncStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface ApiKeyData {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateApiKeyResponse {
+  key: ApiKeyData;
+  rawKey: string; // only returned once at creation time
+}
+
+// ─── Documentation Sync ──────────────────────────
+export interface SyncFilePayload {
+  filePath: string;
+  content: string;       // raw file content
+  language?: string;
+  fileHash?: string;     // SHA-256 of file content, computed client-side
+  symbols?: SyncSymbolPayload[];
+}
+
+export interface SyncSymbolPayload {
+  name: string;
+  kind: string;         // "function" | "class" | "method" | "interface" etc.
+  startLine: number;
+  endLine: number;
+  signature?: string;
+  docstring?: string;
+}
+
+export interface SyncPayload {
+  files: SyncFilePayload[];
+  commitHash?: string;
+  branch?: string;
+}
+
+export interface SyncResult {
+  snapshotId: string;
+  filesProcessed: number;
+  sectionsCreated: number;
+  sectionsUpdated: number;
+  status: SyncStatus;
+}

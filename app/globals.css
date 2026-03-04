@@ -241,6 +241,19 @@ button, [role="button"] {
 .doc-content h1 { font-size: 1.875rem; font-weight: 700; margin: 1.5em 0 0.75em; color: #111827; }
 .doc-content h2 { font-size: 1.5rem;   font-weight: 700; margin: 1.25em 0 0.5em;  color: #1f2937; }
 .doc-content h3 { font-size: 1.25rem;  font-weight: 600; margin: 1em 0 0.5em;     color: #374151; }
+.doc-content h4 { font-size: 1.125rem; font-weight: 600; margin: 0.75em 0 0.5em;  color: #4b5563; }
+.doc-content h5 { font-size: 1rem;     font-weight: 600; margin: 0.75em 0 0.5em;  color: #6b7280; }
+.doc-content h6 { font-size: 0.875rem; font-weight: 600; margin: 0.75em 0 0.5em;  color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.doc-content blockquote {
+  border-left: 4px solid #7c3aed;
+  padding: 0.5em 1em;
+  margin: 1em 0;
+  background: #f5f3ff;
+  color: #4b5563;
+  border-radius: 0 8px 8px 0;
+}
+.doc-content blockquote p { margin: 0.25em 0; }
 
 .doc-content p  { margin: 0.5em 0; }
 .doc-content ul { list-style: disc;    padding-left: 1.5em; margin: 0.5em 0; }

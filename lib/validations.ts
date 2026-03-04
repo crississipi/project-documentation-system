@@ -93,3 +93,39 @@ export const updateContentSchema = z.object({
     })
   ),
 });
+
+// ─── API Keys ────────────────────────────────────
+export const createApiKeySchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  scopes: z.array(z.string()).min(1, "At least one scope is required"),
+  expiresInDays: z.number().int().min(1).max(365).optional(),
+});
+
+// ─── Documentation Sync ──────────────────────────
+export const syncPayloadSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        filePath: z.string().min(1, "File path is required"),
+        content: z.string(),
+        language: z.string().optional(),
+        fileHash: z.string().optional(),
+        symbols: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              kind: z.string().min(1),
+              startLine: z.number().int().min(0),
+              endLine: z.number().int().min(0),
+              signature: z.string().optional(),
+              docstring: z.string().optional(),
+            })
+          )
+          .optional(),
+      })
+    )
+    .min(1, "At least one file is required")
+    .max(500, "Maximum 500 files per sync"),
+  commitHash: z.string().optional(),
+  branch: z.string().optional(),
+});

@@ -6,6 +6,7 @@ import { BiCabinet, BiPlus, BiTrendingUp, BiFile } from "react-icons/bi";
 import { useAuth } from "@/app/context/AuthContext";
 import { Button } from "@/app/components/ui/Button";
 import { ActivityPanel } from "@/app/components/dashboard/ActivityPanel";
+import { NewProjectModal } from "@/app/components/projects/NewProjectModal";
 import { formatDate, getGreeting } from "@/lib/utils";
 import type { ProjectSummary } from "@/types";
 import { apiFetch } from "@/lib/apiFetch";
@@ -15,6 +16,7 @@ const Dashboard = () => {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNewProject, setShowNewProject] = useState(false);
 
   useEffect(() => {
     apiFetch("/api/projects")
@@ -75,7 +77,7 @@ const Dashboard = () => {
           <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-10 flex flex-col items-center text-center">
             <BiCabinet className="text-4xl text-slate-300 mb-2" />
             <p className="text-slate-500 text-sm">No projects yet. Create your first one!</p>
-            <Button size="sm" className="mt-4 gap-1" onClick={() => router.push("/dashboard")}>
+            <Button size="sm" className="mt-4 gap-1" onClick={() => setShowNewProject(true)}>
               <BiPlus /> New Project
             </Button>
           </div>
@@ -98,6 +100,16 @@ const Dashboard = () => {
 
       {/* Activity & Progress Charts */}
       <ActivityPanel />
+
+      {/* New Project Modal */}
+      <NewProjectModal
+        open={showNewProject}
+        onClose={() => setShowNewProject(false)}
+        onCreated={(project) => {
+          setShowNewProject(false);
+          router.push(`/projects/${project.id}`);
+        }}
+      />
     </div>
   );
 };

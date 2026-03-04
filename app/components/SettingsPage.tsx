@@ -6,6 +6,7 @@ import {
   BiCheck, BiX, BiShow, BiHide, BiInfoCircle,
   BiMoon, BiSun, BiDesktop, BiBell,
   BiFile, BiLockOpen, BiTimeFive, BiCalendar,
+  BiKey, BiCopy, BiTrash, BiPlus,
 } from "react-icons/bi";
 import { useAuth } from "@/app/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -14,7 +15,7 @@ import { useToast } from "@/app/components/ui/Toast";
 import TwoFactorModal from "@/app/components/auth/TwoFactorModal";
 import { DEFAULT_PREFERENCES } from "@/types";
 import { formatDate } from "@/lib/utils";
-import type { UserPreferences, PaperSize, ProjectVisibility } from "@/types";
+import type { UserPreferences, PaperSize, ProjectVisibility, ApiKeyData } from "@/types";
 
 // ─── Section card wrapper ─────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ function PillGroup<T extends string>({ options, value, onChange }: {
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-const TABS = ["Preferences", "Security", "Account"] as const;
+const TABS = ["Preferences", "Security", "API Keys", "Account"] as const;
 type Tab = typeof TABS[number];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -109,6 +110,17 @@ export default function SettingsPage() {
   const [pwSaving, setPwSaving]     = useState(false);
   const [pwError, setPwError]       = useState("");
 
+  // ── API Keys state ───────────────────────────────────────────────────
+  const [apiKeys, setApiKeys]           = useState<ApiKeyData[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [showCreateKey, setShowCreateKey]   = useState(false);
+  const [newKeyName, setNewKeyName]     = useState("");
+  const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["sync", "read"]);
+  const [newKeyExpiry, setNewKeyExpiry] = useState<number | "">(90);
+  const [creatingKey, setCreatingKey]   = useState(false);
+  const [revealedKey, setRevealedKey]   = useState<string | null>(null);
+  const [keyCopied, setKeyCopied]       = useState(false);
+
   // ── 2FA state ────────────────────────────────────────────────────────
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [show2FADisableModal, setShow2FADisableModal] = useState(false);
@@ -117,6 +129,74 @@ export default function SettingsPage() {
   const [enabling2FA, setEnabling2FA] = useState(false);
 
   useEffect(() => { fetchPrefs(); }, []);
+
+  // Fetch API keys when switching to that tab
+  useEffect(() => {
+    if (activeTab === "API Keys") fetchApiKeys();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const fetchApiKeys = async () => {
+    setApiKeysLoading(true);
+    try {
+      const res = await apiFetch("/api/v1/auth/keys");
+      const json = await res.json();
+      if (res.ok && json.data) setApiKeys(json.data);
+    } catch { /* ignore */ }
+    finally { setApiKeysLoading(false); }
+  };
+
+  const createApiKey = async () => {
+    if (!newKeyName.trim()) { showToast("Key name is required", "error"); return; }
+    setCreatingKey(true);
+    try {
+      const res = await apiFetch("/api/v1/auth/keys", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: newKeyName.trim(),
+          scopes: newKeyScopes,
+          expiresInDays: newKeyExpiry || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setRevealedKey(json.data.rawKey);
+        setApiKeys((prev) => [json.data.key, ...prev]);
+        setNewKeyName("");
+        setShowCreateKey(false);
+        showToast("API key created", "success");
+      } else {
+        showToast(json.error ?? "Failed to create key", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setCreatingKey(false);
+    }
+  };
+
+  const revokeApiKey = async (id: string) => {
+    if (!confirm("Revoke this API key? This cannot be undone.")) return;
+    try {
+      const res = await apiFetch(`/api/v1/auth/keys/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setApiKeys((prev) => prev.filter((k) => k.id !== id));
+        showToast("API key revoked", "success");
+      } else {
+        const json = await res.json();
+        showToast(json.error ?? "Failed to revoke key", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    }
+  };
+
+  const copyKey = async (key: string) => {
+    await navigator.clipboard.writeText(key);
+    setKeyCopied(true);
+    setTimeout(() => setKeyCopied(false), 2000);
+  };
 
   // Sync theme preference to ThemeContext when prefs load
   useEffect(() => {
@@ -315,6 +395,7 @@ export default function SettingsPage() {
               }`}>
               {tab === "Preferences" && <BiSlider className="text-base" />}
               {tab === "Security"    && <BiLock className="text-base" />}
+              {tab === "API Keys"    && <BiKey className="text-base" />}
               {tab === "Account"     && <BiUser className="text-base" />}
               {tab}
             </button>
@@ -570,6 +651,202 @@ export default function SettingsPage() {
                     </button>
                   )}
                 </div>
+              </div>
+            </SectionCard>
+          </>
+        )}
+
+        {/* ──────────────────── API KEYS ──────────────────────────────── */}
+        {activeTab === "API Keys" && (
+          <>
+            {/* Revealed key banner */}
+            {revealedKey && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <div className="flex items-start gap-3">
+                  <BiInfoCircle className="text-amber-600 text-xl shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-800">Your new API key — copy it now!</p>
+                    <p className="text-xs text-amber-600 mt-0.5">This key will only be shown once. Store it securely.</p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <code className="flex-1 text-xs bg-white border border-amber-300 rounded-lg px-3 py-2 font-mono text-slate-800 break-all select-all">
+                        {revealedKey}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => copyKey(revealedKey)}
+                        className="shrink-0 p-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 transition-colors"
+                        title="Copy to clipboard"
+                      >
+                        {keyCopied ? <BiCheck /> : <BiCopy />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setRevealedKey(null)}
+                      className="mt-3 text-xs text-amber-700 underline hover:text-amber-900"
+                    >
+                      Dismiss — I&apos;ve saved the key
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <SectionCard title="API Keys" description="Manage keys for CLI tools and automation">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-500">
+                    {apiKeys.length === 0 ? "No active API keys" : `${apiKeys.length} active key${apiKeys.length === 1 ? "" : "s"}`}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateKey(!showCreateKey)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                  >
+                    <BiPlus /> Create Key
+                  </button>
+                </div>
+
+                {/* Create key form */}
+                {showCreateKey && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Key Name</label>
+                      <input
+                        type="text"
+                        value={newKeyName}
+                        onChange={(e) => setNewKeyName(e.target.value)}
+                        placeholder="e.g. CI Pipeline, Local Dev"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-violet-400 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Scopes</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {["sync", "read", "*"].map((scope) => (
+                          <button
+                            key={scope}
+                            type="button"
+                            onClick={() => {
+                              setNewKeyScopes((prev) =>
+                                prev.includes(scope)
+                                  ? prev.filter((s) => s !== scope)
+                                  : [...prev, scope]
+                              );
+                            }}
+                            className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                              newKeyScopes.includes(scope)
+                                ? "bg-violet-600 text-white border-violet-600"
+                                : "border-slate-200 text-slate-600 hover:border-violet-300 bg-white"
+                            }`}
+                          >
+                            {scope === "*" ? "All" : scope}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Expires In (days)</label>
+                      <input
+                        type="number"
+                        value={newKeyExpiry}
+                        onChange={(e) => setNewKeyExpiry(e.target.value ? parseInt(e.target.value) : "")}
+                        placeholder="Leave empty for no expiry"
+                        className="w-48 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-violet-400 bg-white"
+                      />
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateKey(false)}
+                        className="px-4 py-2 text-xs font-semibold border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={createApiKey}
+                        disabled={creatingKey || !newKeyName.trim()}
+                        className="px-4 py-2 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+                      >
+                        {creatingKey ? (
+                          <><span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Creating…</>
+                        ) : (
+                          <><BiKey /> Generate Key</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Key list */}
+                {apiKeysLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {apiKeys.map((key) => (
+                      <div key={key.id} className="flex items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <BiKey className="text-slate-400 text-lg shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate">{key.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                              <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-mono">
+                                ontap_{key.prefix}...
+                              </code>
+                              <span>·</span>
+                              <span>{key.scopes.join(", ")}</span>
+                              {key.lastUsedAt && (
+                                <>
+                                  <span>·</span>
+                                  <span>Last used {new Date(key.lastUsedAt).toLocaleDateString()}</span>
+                                </>
+                              )}
+                              {key.expiresAt && (
+                                <>
+                                  <span>·</span>
+                                  <span className={new Date(key.expiresAt) < new Date() ? "text-red-500 font-semibold" : ""}>
+                                    {new Date(key.expiresAt) < new Date() ? "Expired" : `Expires ${new Date(key.expiresAt).toLocaleDateString()}`}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => revokeApiKey(key.id)}
+                          className="shrink-0 p-2 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Revoke key"
+                        >
+                          <BiTrash />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Usage Guide" description="How to use API keys for documentation automation">
+              <div className="space-y-3 text-sm text-slate-600">
+                <p>Use your API key to sync documentation from your codebase via the CLI or CI/CD pipeline.</p>
+                <div className="bg-slate-900 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+                  <p className="text-slate-400"># Sync files to a project</p>
+                  <p>curl -X POST \</p>
+                  <p className="pl-4">{typeof window !== "undefined" ? window.location.origin : "https://your-api.vercel.app"}/api/v1/projects/PROJECT_ID/sync \</p>
+                  <p className="pl-4">-H &quot;Authorization: Bearer ontap_YOUR_KEY&quot; \</p>
+                  <p className="pl-4">-H &quot;Content-Type: application/json&quot; \</p>
+                  <p className="pl-4">-d &apos;{`{"files":[{"filePath":"src/index.ts","content":"..."}]}`}&apos;</p>
+                </div>
+                <p className="text-xs text-slate-400">
+                  <strong>Scopes:</strong> <code className="bg-slate-100 px-1 rounded">sync</code> — push file content,{" "}
+                  <code className="bg-slate-100 px-1 rounded">read</code> — read project data,{" "}
+                  <code className="bg-slate-100 px-1 rounded">*</code> — all permissions.
+                </p>
               </div>
             </SectionCard>
           </>

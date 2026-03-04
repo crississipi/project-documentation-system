@@ -11,7 +11,10 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM = process.env.SMTP_FROM ?? "OnTap Dev Documentation <noreply@example.com>";
-const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+const APP_URL =
+  process.env.APP_URL ??
+  process.env.NEXT_PUBLIC_APP_URL ??
+  "http://localhost:3000";
 
 const ROLE_LABEL: Record<string, string> = {
   VIEWER: "view only",
