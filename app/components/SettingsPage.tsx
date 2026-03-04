@@ -886,32 +886,51 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* Installation */}
-            <SectionCard title="Installation" description="Install the Ontap CLI globally using your preferred package manager">
+            <SectionCard title="Quick Setup" description="Add the sync script to any project in two steps — no global install needed">
               <div className="space-y-4 text-sm">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">npm</p>
-                  <div className="bg-slate-900 text-emerald-400 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
-                    npm install -g ontap-cli
-                  </div>
+                <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 flex items-start gap-2.5">
+                  <BiInfoCircle className="text-sky-500 text-lg shrink-0 mt-0.5" />
+                  <p className="text-xs text-sky-700">
+                    The OnTap sync tool is a plain Node.js script — no binary to install globally.
+                    Copy <code className="bg-sky-100 px-1 rounded font-mono">sync-docs.mjs</code> into
+                    your project root, set two environment variables, and run it with{" "}
+                    <code className="bg-sky-100 px-1 rounded font-mono">node</code> or{" "}
+                    <code className="bg-sky-100 px-1 rounded font-mono">bun</code>.
+                  </p>
                 </div>
+
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">bun</p>
-                  <div className="bg-slate-900 text-emerald-400 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
-                    bun add -g ontap-cli
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Verify installation</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Step 1 — Download the script</p>
                   <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
-                    <p className="text-slate-400"># Check the installed version</p>
-                    <p className="text-emerald-400">ontap --version</p>
+                    <p className="text-slate-400"># curl</p>
+                    <p className="text-emerald-400">curl -o sync-docs.mjs https://project-documentation-system.vercel.app/sync-docs.mjs</p>
+                    <p className="text-slate-400 mt-2"># or wget</p>
+                    <p className="text-emerald-400">wget -O sync-docs.mjs https://project-documentation-system.vercel.app/sync-docs.mjs</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Step 2 — Add to your .env</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-emerald-400">ONTAP_API_KEY=ontap_YOUR_KEY_HERE</p>
+                    <p className="text-emerald-400">ONTAP_PROJECT_ID=YOUR_PROJECT_UUID</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Run it</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-slate-400"># Node.js (v18+)</p>
+                    <p className="text-emerald-400">node sync-docs.mjs</p>
+                    <p className="text-slate-400 mt-2"># Bun</p>
+                    <p className="text-emerald-400">bun sync-docs.mjs</p>
                   </div>
                 </div>
               </div>
             </SectionCard>
 
             {/* Authentication */}
-            <SectionCard title="Authentication" description="Authenticate the CLI using an API key generated from the API Keys tab">
+            <SectionCard title="Authentication" description="Pass your API key to the sync script via environment variable or inline">
               <div className="space-y-4 text-sm">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2.5">
                   <BiInfoCircle className="text-amber-500 text-lg shrink-0 mt-0.5" />
@@ -919,7 +938,7 @@ export default function SettingsPage() {
                     <p className="text-sm font-semibold text-amber-700">API Key Required</p>
                     <p className="text-xs text-amber-600 mt-0.5">
                       You need an API key with at least the{" "}
-                      <code className="bg-amber-100 px-1 rounded font-mono">sync</code> scope to use the CLI.{" "}
+                      <code className="bg-amber-100 px-1 rounded font-mono">sync</code> scope.{" "}
                       Generate one in the{" "}
                       <button
                         type="button"
@@ -933,110 +952,94 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 1 — Environment variable <span className="normal-case text-violet-600">(recommended)</span></p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 1 — .env file <span className="normal-case text-violet-600">(recommended)</span></p>
                   <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
-                    <p className="text-slate-400"># Add to your .env file or shell profile (~/.zshrc, ~/.bashrc)</p>
+                    <p className="text-slate-400"># .env (never commit this file)</p>
                     <p className="text-emerald-400">ONTAP_API_KEY=ontap_YOUR_KEY_HERE</p>
+                    <p className="text-emerald-400">ONTAP_PROJECT_ID=YOUR_PROJECT_UUID</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 2 — Login command</p>
-                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
-                    <p className="text-slate-400"># Interactive login — stores the key in ~/.ontap/config</p>
-                    <p className="text-emerald-400">ontap login --key ontap_YOUR_KEY_HERE</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 3 — Inline flag</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 2 — Inline (one-off run)</p>
                   <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
-                    <p className="text-emerald-400">ontap sync --key ontap_YOUR_KEY_HERE --project PROJECT_ID</p>
+                    <p className="text-emerald-400">ONTAP_API_KEY=ontap_YOUR_KEY ONTAP_PROJECT_ID=YOUR_ID node sync-docs.mjs</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 3 — CI/CD secret</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-slate-400"># GitHub Actions — add ONTAP_API_KEY as a repository secret</p>
+                    <p className="text-slate-400"># and ONTAP_PROJECT_ID as a repository variable</p>
+                    <p className="text-emerald-400">{"env:\n  ONTAP_API_KEY: ${{ secrets.ONTAP_API_KEY }}\n  ONTAP_PROJECT_ID: ${{ vars.ONTAP_PROJECT_ID }}"}</p>
                   </div>
                 </div>
               </div>
             </SectionCard>
 
             {/* Commands */}
-            <SectionCard title="Commands Reference" description="All available CLI commands and their usage">
+            <SectionCard title="Script Usage" description="How to run sync-docs.mjs and what environment variables it reads">
               <div className="space-y-6 text-sm">
 
-                {/* sync */}
+                {/* basic run */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">sync</span>
-                    <span className="text-slate-500 text-xs">Push local files to a project</span>
+                    <span className="text-slate-500 text-xs">Push all source files from the current directory</span>
                   </div>
                   <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
-                    <p className="text-slate-400"># Sync all supported files in the current directory</p>
-                    <p className="text-emerald-400">ontap sync --project PROJECT_ID</p>
-                    <p className="text-slate-400 mt-2"># Sync a specific folder</p>
-                    <p className="text-emerald-400">ontap sync --project PROJECT_ID --path ./src</p>
-                    <p className="text-slate-400 mt-2"># Sync matching a glob pattern</p>
-                    <p className="text-emerald-400">{"ontap sync --project PROJECT_ID --pattern '**/*.md'"}</p>
+                    <p className="text-slate-400"># Reads ONTAP_API_KEY + ONTAP_PROJECT_ID from .env automatically</p>
+                    <p className="text-emerald-400">node sync-docs.mjs</p>
+                    <p className="text-slate-400 mt-2"># Bun alternative</p>
+                    <p className="text-emerald-400">bun sync-docs.mjs</p>
                   </div>
                 </div>
 
-                {/* pull */}
+                {/* custom root */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="bg-sky-100 text-sky-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">pull</span>
-                    <span className="text-slate-500 text-xs">Download project documents to your local machine</span>
+                    <span className="bg-sky-100 text-sky-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">--root</span>
+                    <span className="text-slate-500 text-xs">Sync a specific folder instead of the project root</span>
                   </div>
                   <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
-                    <p className="text-slate-400"># Pull all docs from a project to ./docs</p>
-                    <p className="text-emerald-400">ontap pull --project PROJECT_ID</p>
-                    <p className="text-slate-400 mt-2"># Pull to a custom output directory</p>
-                    <p className="text-emerald-400">ontap pull --project PROJECT_ID --out ./output</p>
+                    <p className="text-slate-400"># Only sync files under ./src</p>
+                    <p className="text-emerald-400">ROOT=./src node sync-docs.mjs</p>
                   </div>
                 </div>
 
-                {/* list */}
+                {/* dry run */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="bg-slate-100 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">list</span>
-                    <span className="text-slate-500 text-xs">List your available projects</span>
+                    <span className="bg-slate-100 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">DRY_RUN</span>
+                    <span className="text-slate-500 text-xs">Preview which files will be sent without actually syncing</span>
                   </div>
                   <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
-                    <p className="text-emerald-400">ontap list</p>
+                    <p className="text-emerald-400">DRY_RUN=true node sync-docs.mjs</p>
                   </div>
                 </div>
 
-                {/* status */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">status</span>
-                    <span className="text-slate-500 text-xs">Show sync status and pending changes</span>
-                  </div>
-                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
-                    <p className="text-emerald-400">ontap status --project PROJECT_ID</p>
-                  </div>
-                </div>
-
-                {/* flags table */}
+                {/* env vars table */}
                 <div className="overflow-x-auto">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Common flags</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Environment variables</p>
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        <th className="text-left py-1.5 pr-4 font-semibold text-slate-500">Flag</th>
-                        <th className="text-left py-1.5 pr-4 font-semibold text-slate-500">Type</th>
+                        <th className="text-left py-1.5 pr-4 font-semibold text-slate-500">Variable</th>
+                        <th className="text-left py-1.5 pr-4 font-semibold text-slate-500">Required</th>
                         <th className="text-left py-1.5 font-semibold text-slate-500">Description</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {([
-                        { flag: "--project",  type: "string",  desc: "Target project ID (required)" },
-                        { flag: "--key",       type: "string",  desc: "API key (overrides env variable)" },
-                        { flag: "--path",      type: "string",  desc: "Directory to sync (default: .)" },
-                        { flag: "--out",       type: "string",  desc: "Output directory for pull (default: ./docs)" },
-                        { flag: "--pattern",   type: "glob",    desc: "File glob pattern to include" },
-                        { flag: "--dry-run",   type: "boolean", desc: "Preview changes without applying them" },
-                        { flag: "--verbose",   type: "boolean", desc: "Print detailed output" },
-                      ] as { flag: string; type: string; desc: string }[]).map((row) => (
-                        <tr key={row.flag}>
-                          <td className="py-2 pr-4"><code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono">{row.flag}</code></td>
-                          <td className="py-2 pr-4 text-slate-400 font-mono">{row.type}</td>
+                        { v: "ONTAP_API_KEY",    req: "Yes",      desc: "API key with sync scope (ontap_…)" },
+                        { v: "ONTAP_PROJECT_ID", req: "Yes",      desc: "UUID of the target project" },
+                        { v: "ROOT",             req: "No",       desc: "Directory to walk (default: cwd)" },
+                        { v: "DRY_RUN",          req: "No",       desc: 'Set to true to preview without sending' },
+                      ] as { v: string; req: string; desc: string }[]).map((row) => (
+                        <tr key={row.v}>
+                          <td className="py-2 pr-4"><code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono">{row.v}</code></td>
+                          <td className="py-2 pr-4 text-slate-400">{row.req}</td>
                           <td className="py-2 text-slate-500">{row.desc}</td>
                         </tr>
                       ))}
@@ -1061,12 +1064,12 @@ export default function SettingsPage() {
                     <tr>
                       <td className="py-3 pr-6"><code className="bg-violet-100 text-violet-700 text-xs px-1.5 py-0.5 rounded font-mono">sync</code></td>
                       <td className="py-3 pr-6 text-slate-600 text-xs">Write — push files</td>
-                      <td className="py-3 text-slate-500 text-xs">CI/CD sync pipelines, <code className="bg-slate-100 px-1 rounded">ontap sync</code></td>
+                      <td className="py-3 text-slate-500 text-xs">CI/CD sync pipelines, automated documentation</td>
                     </tr>
                     <tr>
                       <td className="py-3 pr-6"><code className="bg-sky-100 text-sky-700 text-xs px-1.5 py-0.5 rounded font-mono">read</code></td>
                       <td className="py-3 pr-6 text-slate-600 text-xs">Read-only — list &amp; pull</td>
-                      <td className="py-3 text-slate-500 text-xs">Read-only scripts, <code className="bg-slate-100 px-1 rounded">ontap pull</code> / <code className="bg-slate-100 px-1 rounded">ontap list</code></td>
+                      <td className="py-3 text-slate-500 text-xs">Read-only scripts and integrations</td>
                     </tr>
                     <tr>
                       <td className="py-3 pr-6"><code className="bg-slate-100 text-slate-700 text-xs px-1.5 py-0.5 rounded font-mono">*</code></td>
@@ -1106,10 +1109,14 @@ export default function SettingsPage() {
                     <p className="pl-10 text-slate-300">- uses: actions/setup-node@v4</p>
                     <p className="pl-12 text-slate-300">with:</p>
                     <p className="pl-14 text-slate-300">node-version: &apos;20&apos;</p>
-                    <p className="pl-10 text-slate-300">- run: npm install -g ontap-cli</p>
-                    <p className="pl-10 text-slate-300">{"- run: ontap sync --project ${{ vars.PROJECT_ID }}"}</p>
+                    <p className="pl-10 text-slate-300">- uses: actions/setup-node@v4</p>
+                    <p className="pl-12 text-slate-300">with:</p>
+                    <p className="pl-14 text-slate-300">node-version: &apos;20&apos;</p>
+                    <p className="pl-10 text-slate-300">{"- run: curl -o sync-docs.mjs https://project-documentation-system.vercel.app/sync-docs.mjs"}</p>
+                    <p className="pl-10 text-slate-300">- run: node sync-docs.mjs</p>
                     <p className="pl-12 text-slate-300">env:</p>
                     <p className="pl-14 text-emerald-400">{"ONTAP_API_KEY: ${{ secrets.ONTAP_API_KEY }}"}</p>
+                    <p className="pl-14 text-emerald-400">{"ONTAP_PROJECT_ID: ${{ vars.ONTAP_PROJECT_ID }}"}</p>
                   </div>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 space-y-2">
@@ -1121,7 +1128,7 @@ export default function SettingsPage() {
                       {" "}using the <code className="bg-slate-100 px-1 rounded">sync</code> scope.
                     </li>
                     <li>Add the key as a repository secret named <code className="bg-slate-100 px-1 rounded">ONTAP_API_KEY</code>.</li>
-                    <li>Add your Project ID as a repository variable named <code className="bg-slate-100 px-1 rounded">PROJECT_ID</code>.</li>
+                    <li>Add your Project ID as a repository variable named <code className="bg-slate-100 px-1 rounded">ONTAP_PROJECT_ID</code>.</li>
                     <li>Commit the workflow file — docs will sync on every push to <code className="bg-slate-100 px-1 rounded">main</code>.</li>
                   </ol>
                 </div>
