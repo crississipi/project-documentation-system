@@ -171,7 +171,7 @@ export default function Projects() {
         </div>
 
         {/* Search + sort + filter toggle row */}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           {/* Search */}
           <div className="relative flex-1">
             <BiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base" />
@@ -189,6 +189,9 @@ export default function Projects() {
               </button>
             )}
           </div>
+
+          {/* Sort + Filter + Clear — grouped so they share one row on mobile */}
+          <div className="flex gap-2 shrink-0">
 
           {/* Sort */}
           <div className="relative">
@@ -233,6 +236,8 @@ export default function Projects() {
               <BiRefresh /> Clear
             </button>
           )}
+
+          </div>
         </div>
 
         {/* Expandable filter panel */}

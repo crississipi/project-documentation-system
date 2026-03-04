@@ -7,6 +7,7 @@ import {
   BiMoon, BiSun, BiDesktop, BiBell,
   BiFile, BiLockOpen, BiTimeFive, BiCalendar,
   BiKey, BiCopy, BiTrash, BiPlus,
+  BiTerminal, BiCode, BiDownload,
 } from "react-icons/bi";
 import { useAuth } from "@/app/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
@@ -83,7 +84,7 @@ function PillGroup<T extends string>({ options, value, onChange }: {
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-const TABS = ["Preferences", "Security", "API Keys", "Account"] as const;
+const TABS = ["Preferences", "Security", "API Keys", "CLI Guide", "Account"] as const;
 type Tab = typeof TABS[number];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -385,7 +386,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab strip */}
-        <div className="flex gap-1 mt-5 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+        <div className="mt-5 overflow-x-auto">
+        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit">
           {TABS.map((tab) => (
             <button key={tab} type="button" onClick={() => setActiveTab(tab)}
               className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
@@ -396,10 +398,12 @@ export default function SettingsPage() {
               {tab === "Preferences" && <BiSlider className="text-base" />}
               {tab === "Security"    && <BiLock className="text-base" />}
               {tab === "API Keys"    && <BiKey className="text-base" />}
+              {tab === "CLI Guide"   && <BiTerminal className="text-base" />}
               {tab === "Account"     && <BiUser className="text-base" />}
               {tab}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
@@ -846,6 +850,299 @@ export default function SettingsPage() {
                   <strong>Scopes:</strong> <code className="bg-slate-100 px-1 rounded">sync</code> — push file content,{" "}
                   <code className="bg-slate-100 px-1 rounded">read</code> — read project data,{" "}
                   <code className="bg-slate-100 px-1 rounded">*</code> — all permissions.
+                </p>
+              </div>
+            </SectionCard>
+          </>
+        )}
+
+        {/* ──────────────────── CLI GUIDE ─────────────────────────────── */}
+        {activeTab === "CLI Guide" && (
+          <>
+            {/* Overview */}
+            <SectionCard title="CLI Tool Overview" description="Sync and manage documentation directly from your terminal or CI/CD pipeline">
+              <div className="space-y-4 text-sm text-slate-600">
+                <p>
+                  The <code className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded font-mono text-xs">ontap</code> CLI
+                  tool lets you push source files, pull project data, and automate documentation workflows without
+                  ever touching the web UI. Connect it to your CI/CD pipeline to keep docs in sync on every commit.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {([
+                    { icon: <BiDownload className="text-violet-600 text-xl" />, title: "Install",       desc: "One-command setup via npm or bun" },
+                    { icon: <BiKey      className="text-violet-600 text-xl" />, title: "Authenticate",  desc: "Use an API key from the API Keys tab" },
+                    { icon: <BiCode     className="text-violet-600 text-xl" />, title: "Sync",          desc: "Push docs from your codebase automatically" },
+                  ] as { icon: React.ReactNode; title: string; desc: string }[]).map((item) => (
+                    <div key={item.title} className="flex items-start gap-3 p-4 bg-violet-50 border border-violet-100 rounded-xl">
+                      {item.icon}
+                      <div>
+                        <p className="font-semibold text-slate-800 text-sm">{item.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Installation */}
+            <SectionCard title="Installation" description="Install the Ontap CLI globally using your preferred package manager">
+              <div className="space-y-4 text-sm">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">npm</p>
+                  <div className="bg-slate-900 text-emerald-400 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
+                    npm install -g ontap-cli
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">bun</p>
+                  <div className="bg-slate-900 text-emerald-400 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
+                    bun add -g ontap-cli
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Verify installation</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-slate-400"># Check the installed version</p>
+                    <p className="text-emerald-400">ontap --version</p>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Authentication */}
+            <SectionCard title="Authentication" description="Authenticate the CLI using an API key generated from the API Keys tab">
+              <div className="space-y-4 text-sm">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2.5">
+                  <BiInfoCircle className="text-amber-500 text-lg shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700">API Key Required</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      You need an API key with at least the{" "}
+                      <code className="bg-amber-100 px-1 rounded font-mono">sync</code> scope to use the CLI.{" "}
+                      Generate one in the{" "}
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("API Keys")}
+                        className="underline font-semibold hover:text-amber-800 transition-colors"
+                      >
+                        API Keys tab
+                      </button>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 1 — Environment variable <span className="normal-case text-violet-600">(recommended)</span></p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-slate-400"># Add to your .env file or shell profile (~/.zshrc, ~/.bashrc)</p>
+                    <p className="text-emerald-400">ONTAP_API_KEY=ontap_YOUR_KEY_HERE</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 2 — Login command</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-slate-400"># Interactive login — stores the key in ~/.ontap/config</p>
+                    <p className="text-emerald-400">ontap login --key ontap_YOUR_KEY_HERE</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Option 3 — Inline flag</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
+                    <p className="text-emerald-400">ontap sync --key ontap_YOUR_KEY_HERE --project PROJECT_ID</p>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Commands */}
+            <SectionCard title="Commands Reference" description="All available CLI commands and their usage">
+              <div className="space-y-6 text-sm">
+
+                {/* sync */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">sync</span>
+                    <span className="text-slate-500 text-xs">Push local files to a project</span>
+                  </div>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-slate-400"># Sync all supported files in the current directory</p>
+                    <p className="text-emerald-400">ontap sync --project PROJECT_ID</p>
+                    <p className="text-slate-400 mt-2"># Sync a specific folder</p>
+                    <p className="text-emerald-400">ontap sync --project PROJECT_ID --path ./src</p>
+                    <p className="text-slate-400 mt-2"># Sync matching a glob pattern</p>
+                    <p className="text-emerald-400">{"ontap sync --project PROJECT_ID --pattern '**/*.md'"}</p>
+                  </div>
+                </div>
+
+                {/* pull */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-sky-100 text-sky-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">pull</span>
+                    <span className="text-slate-500 text-xs">Download project documents to your local machine</span>
+                  </div>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                    <p className="text-slate-400"># Pull all docs from a project to ./docs</p>
+                    <p className="text-emerald-400">ontap pull --project PROJECT_ID</p>
+                    <p className="text-slate-400 mt-2"># Pull to a custom output directory</p>
+                    <p className="text-emerald-400">ontap pull --project PROJECT_ID --out ./output</p>
+                  </div>
+                </div>
+
+                {/* list */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-slate-100 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">list</span>
+                    <span className="text-slate-500 text-xs">List your available projects</span>
+                  </div>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
+                    <p className="text-emerald-400">ontap list</p>
+                  </div>
+                </div>
+
+                {/* status */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5 rounded font-mono">status</span>
+                    <span className="text-slate-500 text-xs">Show sync status and pending changes</span>
+                  </div>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto">
+                    <p className="text-emerald-400">ontap status --project PROJECT_ID</p>
+                  </div>
+                </div>
+
+                {/* flags table */}
+                <div className="overflow-x-auto">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Common flags</p>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-1.5 pr-4 font-semibold text-slate-500">Flag</th>
+                        <th className="text-left py-1.5 pr-4 font-semibold text-slate-500">Type</th>
+                        <th className="text-left py-1.5 font-semibold text-slate-500">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {([
+                        { flag: "--project",  type: "string",  desc: "Target project ID (required)" },
+                        { flag: "--key",       type: "string",  desc: "API key (overrides env variable)" },
+                        { flag: "--path",      type: "string",  desc: "Directory to sync (default: .)" },
+                        { flag: "--out",       type: "string",  desc: "Output directory for pull (default: ./docs)" },
+                        { flag: "--pattern",   type: "glob",    desc: "File glob pattern to include" },
+                        { flag: "--dry-run",   type: "boolean", desc: "Preview changes without applying them" },
+                        { flag: "--verbose",   type: "boolean", desc: "Print detailed output" },
+                      ] as { flag: string; type: string; desc: string }[]).map((row) => (
+                        <tr key={row.flag}>
+                          <td className="py-2 pr-4"><code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono">{row.flag}</code></td>
+                          <td className="py-2 pr-4 text-slate-400 font-mono">{row.type}</td>
+                          <td className="py-2 text-slate-500">{row.desc}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Scopes */}
+            <SectionCard title="API Key Scopes" description="Choose the right permissions when generating your API key">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left py-2 pr-6 text-xs font-semibold text-slate-500 uppercase tracking-wide">Scope</th>
+                      <th className="text-left py-2 pr-6 text-xs font-semibold text-slate-500 uppercase tracking-wide">Permissions</th>
+                      <th className="text-left py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">Recommended for</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="py-3 pr-6"><code className="bg-violet-100 text-violet-700 text-xs px-1.5 py-0.5 rounded font-mono">sync</code></td>
+                      <td className="py-3 pr-6 text-slate-600 text-xs">Write — push files</td>
+                      <td className="py-3 text-slate-500 text-xs">CI/CD sync pipelines, <code className="bg-slate-100 px-1 rounded">ontap sync</code></td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-6"><code className="bg-sky-100 text-sky-700 text-xs px-1.5 py-0.5 rounded font-mono">read</code></td>
+                      <td className="py-3 pr-6 text-slate-600 text-xs">Read-only — list &amp; pull</td>
+                      <td className="py-3 text-slate-500 text-xs">Read-only scripts, <code className="bg-slate-100 px-1 rounded">ontap pull</code> / <code className="bg-slate-100 px-1 rounded">ontap list</code></td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-6"><code className="bg-slate-100 text-slate-700 text-xs px-1.5 py-0.5 rounded font-mono">*</code></td>
+                      <td className="py-3 pr-6 text-slate-600 text-xs">All permissions</td>
+                      <td className="py-3 text-slate-500 text-xs">Local development, admin automation</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("API Keys")}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors"
+                >
+                  <BiKey className="text-sm" /> Generate an API Key
+                </button>
+              </div>
+            </SectionCard>
+
+            {/* CI/CD */}
+            <SectionCard title="CI/CD Integration" description="Automate documentation sync in your GitHub Actions or other pipeline">
+              <div className="space-y-4 text-sm">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">GitHub Actions — sync on push to main</p>
+                  <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-0.5 leading-relaxed">
+                    <p className="text-slate-400"># .github/workflows/sync-docs.yml</p>
+                    <p className="text-yellow-300">name: Sync Docs</p>
+                    <p className="text-yellow-300">on:</p>
+                    <p className="pl-4 text-yellow-300">push:</p>
+                    <p className="pl-8 text-yellow-300">branches: [main]</p>
+                    <p className="text-yellow-300">jobs:</p>
+                    <p className="pl-4 text-yellow-300">sync:</p>
+                    <p className="pl-8 text-yellow-300">runs-on: ubuntu-latest</p>
+                    <p className="pl-8 text-yellow-300">steps:</p>
+                    <p className="pl-10 text-slate-300">- uses: actions/checkout@v4</p>
+                    <p className="pl-10 text-slate-300">- uses: actions/setup-node@v4</p>
+                    <p className="pl-12 text-slate-300">with:</p>
+                    <p className="pl-14 text-slate-300">node-version: &apos;20&apos;</p>
+                    <p className="pl-10 text-slate-300">- run: npm install -g ontap-cli</p>
+                    <p className="pl-10 text-slate-300">{"- run: ontap sync --project ${{ vars.PROJECT_ID }}"}</p>
+                    <p className="pl-12 text-slate-300">env:</p>
+                    <p className="pl-14 text-emerald-400">{"ONTAP_API_KEY: ${{ secrets.ONTAP_API_KEY }}"}</p>
+                  </div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 space-y-2">
+                  <p className="font-semibold text-slate-700">Setup checklist</p>
+                  <ol className="list-decimal list-inside space-y-1.5 mt-1">
+                    <li>
+                      Generate an API key with the{" "}
+                      <button type="button" onClick={() => setActiveTab("API Keys")} className="underline text-violet-600 hover:text-violet-800 font-semibold">API Keys tab</button>
+                      {" "}using the <code className="bg-slate-100 px-1 rounded">sync</code> scope.
+                    </li>
+                    <li>Add the key as a repository secret named <code className="bg-slate-100 px-1 rounded">ONTAP_API_KEY</code>.</li>
+                    <li>Add your Project ID as a repository variable named <code className="bg-slate-100 px-1 rounded">PROJECT_ID</code>.</li>
+                    <li>Commit the workflow file — docs will sync on every push to <code className="bg-slate-100 px-1 rounded">main</code>.</li>
+                  </ol>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Direct API */}
+            <SectionCard title="Direct REST API" description="Use curl or any HTTP client to call the API without installing the CLI">
+              <div className="space-y-3 text-sm">
+                <div className="bg-slate-900 rounded-xl px-4 py-3 font-mono text-xs overflow-x-auto space-y-1">
+                  <p className="text-slate-400"># Push files to a project via REST</p>
+                  <p className="text-emerald-400">curl -X POST \</p>
+                  <p className="pl-4 text-slate-300">
+                    {typeof window !== "undefined" ? window.location.origin : "https://your-app.vercel.app"}
+                    /api/v1/projects/<span className="text-yellow-300">PROJECT_ID</span>/sync \</p>
+                  <p className="pl-4 text-slate-300">-H <span className="text-amber-300">&quot;Authorization: Bearer ontap_YOUR_KEY&quot;</span> \</p>
+                  <p className="pl-4 text-slate-300">-H <span className="text-amber-300">&quot;Content-Type: application/json&quot;</span> \</p>
+                  <p className="pl-4 text-slate-300">-d <span className="text-amber-300">&apos;{`{"files":[{"filePath":"src/index.ts","content":"..."}]}`}&apos;</span></p>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Find your Project ID on the <strong className="text-slate-600">Projects</strong> page. Click any project to view its details and copy the ID.
                 </p>
               </div>
             </SectionCard>

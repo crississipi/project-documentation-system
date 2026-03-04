@@ -5,7 +5,7 @@ const Login = () => {
     <div className='h-full w-full fixed flex items-center justify-center z-50 backdrop-blur-3xl overflow-hidden'>
       {/* Noise texture overlay */}
       <div className='absolute inset-0 z-0 bg-noise opacity-[0.03] pointer-events-none'></div>
-      <div className='h-4/5 w-1/3 min-w-112.5 max-w-125 rounded-2xl bg-white z-10 flex flex-col items-center p-5'>
+      <div className='h-auto w-full max-w-xs sm:max-w-sm md:max-w-md mx-4 rounded-2xl bg-white z-10 flex flex-col items-center p-5 sm:p-6'>
         <div className='h-32 w-full border'></div>
         <form action="#" className='w-full flex flex-col items-center my-10'>
             <div className='group w-full h-max rounded-lg border border-gray-300 focus-within:border-violet-600 has-[input:not(:placeholder-shown)]:border-violet-600 py-3 px-5 relative transition-colors'>
