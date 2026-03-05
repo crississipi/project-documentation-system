@@ -8,7 +8,7 @@ import {
 import { BiCalendar, BiTime, BiEditAlt, BiText, BiTrendingUp } from "react-icons/bi";
 import { apiFetch } from "@/lib/apiFetch";
 
-type Range = "yesterday" | "week" | "month" | "custom";
+type Range = "today" | "yesterday" | "week" | "month" | "custom";
 
 interface TimelineBucket { label: string; saves: number; words: number; chars: number }
 interface ProjectBucket  { name: string; saves: number; words: number; sections: number }
@@ -26,6 +26,7 @@ interface ActivityData {
 }
 
 const RANGE_OPTIONS: { key: Range; label: string }[] = [
+  { key: "today",     label: "Today" },
   { key: "yesterday", label: "Yesterday" },
   { key: "week",      label: "Last 7 Days" },
   { key: "month",     label: "This Month" },
@@ -50,13 +51,27 @@ function shortName(name: string, max = 14) {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-3 py-2 text-xs">
-      <p className="font-semibold text-slate-700 mb-1">{label}</p>
+    <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-3.5 py-3 text-xs min-w-[150px]">
+      <p className="font-semibold text-slate-700 mb-2 pb-1.5 border-b border-slate-100">{label}</p>
       {payload.map((entry: { name: string; value: number; color: string }, i: number) => (
-        <p key={i} style={{ color: entry.color }}>
-          {entry.name}: <span className="font-medium">{entry.value.toLocaleString()}</span>
-        </p>
+        <div key={i} className="flex items-center justify-between gap-4 mt-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: entry.color }} />
+            <span className="text-slate-500">{entry.name}</span>
+          </div>
+          <span className="font-semibold text-slate-800">
+            {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+          </span>
+        </div>
       ))}
+      {payload.length > 1 && (
+        <div className="mt-2 pt-1.5 border-t border-slate-100 flex justify-between">
+          <span className="text-slate-400">Total</span>
+          <span className="font-semibold text-slate-700">
+            {payload.reduce((s: number, e: {value: number}) => s + (e.value ?? 0), 0).toLocaleString()}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -106,13 +121,14 @@ export function ActivityPanel() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Range quick-select */}
-          <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
+          <div className="overflow-x-auto max-w-full">
+          <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white whitespace-nowrap min-w-max">
             {RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.key}
                 type="button"
                 onClick={() => setRange(opt.key)}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium transition-colors ${
                   range === opt.key
                     ? "bg-violet-600 text-white"
                     : "text-slate-600 hover:bg-slate-50"
@@ -121,6 +137,7 @@ export function ActivityPanel() {
                 {opt.label}
               </button>
             ))}
+          </div>
           </div>
 
           {/* Custom date picker */}

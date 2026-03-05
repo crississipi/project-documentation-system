@@ -99,7 +99,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
         <Input label="Project Title" error={errors.title?.message} {...register("title")} />
         <Input label="Short Description (optional)" error={errors.description?.message} {...register("description")} />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="Category"
             options={CATEGORIES.map((c) => ({ value: c, label: c }))}
@@ -114,7 +114,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="Visibility"
             options={[{ value: "PRIVATE", label: "🔒 Private" }, { value: "PUBLIC", label: "🌐 Public" }]}

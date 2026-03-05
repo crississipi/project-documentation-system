@@ -231,7 +231,7 @@ export default function ProfilePage() {
       <div className="flex-1 overflow-y-auto pb-8">
         {/* ── Profile name row (sits below banner, accounts for avatar overhang) ── */}
         <div className="bg-white border-b border-slate-200 shadow-sm px-4 sm:px-8 pt-14 pb-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             {/* Name + meta */}
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -258,7 +258,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Action buttons */}
-            <div className="shrink-0 flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 sm:shrink-0">
               {dirty && !saving && (
                 <button
                   type="button"
@@ -290,7 +290,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="px-6 pt-6">
+        <div className="px-4 sm:px-6 pt-6">
 
         {/* ── Stats row ────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

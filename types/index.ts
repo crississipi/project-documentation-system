@@ -14,6 +14,8 @@ export interface JWTPayload {
   name: string;
   role: UserRole;
   twoFactorEnabled?: boolean;
+  isImpersonation?: boolean;
+  impersonatorId?: string;
   iat?: number;
   exp?: number;
 }
@@ -27,6 +29,9 @@ export interface AuthUser {
   isEmailVerified: boolean;
   twoFactorEnabled: boolean;
   createdAt: string;
+  isImpersonation?: boolean;
+  impersonatorId?: string;
+  impersonatorName?: string;
 }
 
 export interface UserPreferences {
@@ -174,6 +179,34 @@ export interface NewProjectFormData {
   visibility: ProjectVisibility;
   docType: string;
   paperSize: PaperSize;
+}
+
+// ─── Support Tickets ────────────────────────────
+export type SupportTicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  subject: string;
+  details: string;
+  screenshotUrl: string | null;
+  status: SupportTicketStatus;
+  adminNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user?: { id: string; name: string; email: string; avatarUrl: string | null };
+}
+
+// ─── Notifications ───────────────────────────────
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  link: string | null;
+  createdAt: string;
 }
 
 // ─── API Keys ────────────────────────────────────

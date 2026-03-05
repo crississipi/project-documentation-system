@@ -45,7 +45,11 @@ export async function GET(req: NextRequest) {
     let toDate: Date;
     let granularity: "hour" | "day";
 
-    if (range === "yesterday") {
+    if (range === "today") {
+      fromDate = todayStart;
+      toDate = addDays(todayStart, 1);
+      granularity = "hour";
+    } else if (range === "yesterday") {
       fromDate = startOfDay(addDays(todayStart, -1));
       toDate = todayStart;
       granularity = "hour";

@@ -23,7 +23,18 @@ export async function GET() {
 
     if (!user) return unauthorized();
 
-    return ok(user);
+    // Include impersonation context from JWT if present
+    const responseData = {
+      ...user,
+      ...(session.isImpersonation
+        ? {
+            isImpersonation: true,
+            impersonatorId: session.impersonatorId,
+          }
+        : {}),
+    };
+
+    return ok(responseData);
   } catch (err) {
     console.error("[me]", err);
     return serverError();

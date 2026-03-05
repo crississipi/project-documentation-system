@@ -125,6 +125,48 @@ export async function sendPasswordResetEmail(
   });
 }
 
+// ─── Support Ticket Resolved ──────────────────────
+export async function sendSupportResolvedEmail(
+  to: string,
+  name: string,
+  subject: string,
+  adminNotes: string,
+  ticketId: string
+): Promise<void> {
+  const ticketUrl = `${APP_URL}/?tab=support#${ticketId}`;
+
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `Your support request "${subject}" has been resolved`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f9f9fb;border-radius:12px;">
+        <img src="${APP_URL}/logo.png" alt="OnTap Dev Documentation" style="height:56px;margin-bottom:24px;" />
+        <h2 style="color:#1a1a2e;margin:0 0 8px;">Your Support Request Has Been Resolved ✅</h2>
+        <p style="color:#555;line-height:1.6;">
+          Hi <strong>${name}</strong>, great news! Your support request:
+        </p>
+        <div style="background:#f3f0ff;border-left:4px solid #7c3aed;border-radius:6px;padding:12px 16px;margin:16px 0;">
+          <p style="margin:0;font-weight:600;color:#1a1a2e;">${subject}</p>
+        </div>
+        <p style="color:#555;line-height:1.6;">has been marked as resolved by our support team.</p>
+        ${adminNotes ? `
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;">
+            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#15803d;text-transform:uppercase;letter-spacing:1px;">Admin Notes</p>
+            <p style="margin:0;color:#166534;line-height:1.6;">${adminNotes}</p>
+          </div>
+        ` : ""}
+        <a href="${ticketUrl}"
+          style="display:inline-block;margin:24px 0;padding:12px 28px;background:#7c3aed;color:#fff;
+                 border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
+          View Ticket
+        </a>
+        <p style="color:#888;font-size:13px;">If you believe this issue hasn't been fully resolved, you can open a new support request.</p>
+      </div>
+    `,
+  });
+}
+
 // ─── Two-Factor Authentication OTP ────────────────
 export async function sendOtpEmail(
   to: string,

@@ -25,11 +25,11 @@ function SectionCard({ title, description, children }: {
 }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+      <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50">
         <h3 className="font-semibold text-slate-800">{title}</h3>
         {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
       </div>
-      <div className="px-6 py-5">{children}</div>
+      <div className="px-4 sm:px-6 py-5">{children}</div>
     </div>
   );
 }
