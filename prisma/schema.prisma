@@ -2,7 +2,11 @@
 // MySQL hosted on Hostinger
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Include Linux OpenSSL 1.0.x and 3.0.x targets so the Prisma query engine
+  // binary works on Vercel's Amazon Linux runtime (in addition to the local
+  // native / Windows build).
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

@@ -31,8 +31,10 @@ const Dashboard = () => {
   return (
     <div className="w-full h-full flex flex-col px-4 py-4 sm:px-8 sm:py-6 lg:px-10 gap-6 overflow-y-auto">
       {/* Greeting */}
+      {/* suppressHydrationWarning: getGreeting() uses Date.getHours() which
+          differs between static-export build time and client hydration time. */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">
+        <h1 className="text-2xl font-bold text-slate-900" suppressHydrationWarning>
           Good {getGreeting()}, {user?.name?.split(" ")[0] ?? "there"} 👋
         </h1>
         <p className="text-slate-500 text-sm mt-1">Here's what's happening with your documentation.</p>
