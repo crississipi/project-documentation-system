@@ -113,7 +113,7 @@ export interface CreateProjectInput {
   visibility: ProjectVisibility;
   docType: string;
   paperSize: PaperSize;
-  docFlow: DocFlow;
+  docFlow?: DocFlow;
 }
 
 // ─── Sections ────────────────────────────────────

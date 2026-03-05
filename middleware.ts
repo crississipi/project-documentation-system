@@ -1,11 +1,11 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = new Set([
   "https://lightyellow-newt-377914.hostingersite.com",
   // Uncomment for local dev testing of cross-origin scenarios:
-  "http://localhost:3000",
+  // "http://localhost:3000",
 ]);
 
 function buildCorsHeaders(origin: string): Record<string, string> {
@@ -64,7 +64,7 @@ function isPublicApi(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get("origin");
   const corsHeaders =

@@ -2,11 +2,7 @@
 // MySQL hosted on Hostinger
 
 generator client {
-  provider      = "prisma-client-js"
-  // Include Linux OpenSSL 1.0.x and 3.0.x targets so the Prisma query engine
-  // binary works on Vercel's Amazon Linux runtime (in addition to the local
-  // native / Windows build).
-  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -119,13 +115,12 @@ enum PaperSize {
   LONG
 }
 
-// Documentation Flow — how synced files are ordered in the project
 enum DocFlow {
-  CATEGORY      // Setup → Frontend → Backend → Testing → Other
-  CONNECTION    // Grouped by dependency chain: Frontend → Backend API → Support
-  MODULE        // Grouped by feature / module (AI-arranged)
-  ALPHABETICAL  // A-Z by file path
-  CUSTOM        // User-defined manual order (no auto-reordering on sync)
+  CATEGORY
+  CONNECTION
+  MODULE
+  ALPHABETICAL
+  CUSTOM
 }
 
 // ─────────────────────────────────────────────

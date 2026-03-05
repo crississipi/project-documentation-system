@@ -37,10 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // suppressHydrationWarning: ThemeProvider mutates the <html> element
-    // (data-theme attribute, "dark" class) after mount via useEffect, which
-    // intentionally differs from the server-rendered HTML.
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html lang="en" className="h-full">
       <body
         className={`${inter.variable} ${sourceCodePro.variable} antialiased min-h-full bg-white`}
       >

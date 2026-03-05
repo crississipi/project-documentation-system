@@ -1,6 +1,9 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ok, unauthorized, serverError } from "@/lib/utils";
+import { ok, unauthorized, serverError, corsOptions } from "@/lib/utils";
+
+// CORS preflight — required when accessed cross-origin from the Hostinger frontend
+export function OPTIONS() { return corsOptions(); }
 
 export async function GET() {
   try {
