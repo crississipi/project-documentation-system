@@ -67,6 +67,7 @@ export const createProjectSchema = z.object({
   visibility: z.enum(["PRIVATE", "PUBLIC"]),
   docType: z.string().min(1, "Documentation type is required"),
   paperSize: z.enum(["A4", "LEGAL", "LONG"]),
+  docFlow: z.enum(["CATEGORY", "CONNECTION", "MODULE", "ALPHABETICAL", "CUSTOM"]).optional().default("CATEGORY"),
 });
 
 export const updateProjectSchema = createProjectSchema.partial();
@@ -128,4 +129,5 @@ export const syncPayloadSchema = z.object({
     .max(500, "Maximum 500 files per sync"),
   commitHash: z.string().optional(),
   branch: z.string().optional(),
+  docFlow: z.enum(["CATEGORY", "CONNECTION", "MODULE", "ALPHABETICAL", "CUSTOM"]).optional(),
 });

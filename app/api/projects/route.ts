@@ -36,6 +36,7 @@ export async function GET() {
       visibility: p.visibility,
       docType: p.docType,
       paperSize: p.paperSize,
+      docFlow: p.docFlow,
       authorId: p.authorId,
       authorName: p.author.name,
       createdAt: p.createdAt.toISOString(),
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     const parsed = createProjectSchema.safeParse(body);
     if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
-    const { title, description, category, tags, visibility, docType, paperSize } =
+    const { title, description, category, tags, visibility, docType, paperSize, docFlow } =
       parsed.data;
 
     const project = await prisma.project.create({
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
         visibility,
         docType,
         paperSize,
+        docFlow,
         authorId: session.sub,
       },
       include: {
@@ -90,6 +92,7 @@ export async function POST(request: NextRequest) {
       visibility: project.visibility,
       docType: project.docType,
       paperSize: project.paperSize,
+      docFlow: project.docFlow,
       authorId: project.authorId,
       authorName: project.author.name,
       createdAt: project.createdAt.toISOString(),

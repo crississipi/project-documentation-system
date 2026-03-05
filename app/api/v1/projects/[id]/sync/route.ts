@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authenticateApiKey, hasScope, logApiUsage } from "@/lib/apiKeyAuth";
 import { syncPayloadSchema } from "@/lib/validations";
 import { ok, badRequest, unauthorized, forbidden, notFound, serverError } from "@/lib/utils";
-import type { SyncResult, SyncFilePayload } from "@/types";
+import type { SyncResult, SyncFilePayload, DocFlow } from "@/types";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -40,7 +40,18 @@ export async function POST(request: NextRequest, { params }: Params) {
       return badRequest(parsed.error.issues[0].message);
     }
 
-    const { files, commitHash, branch } = parsed.data;
+    const { files, commitHash, branch, docFlow: payloadDocFlow } = parsed.data;
+
+    // Resolve doc flow: payload override > project setting > default
+    const docFlow: DocFlow = (payloadDocFlow ?? project.docFlow ?? "CATEGORY") as DocFlow;
+
+    // If payload specifies a different docFlow, persist it to the project
+    if (payloadDocFlow && payloadDocFlow !== project.docFlow) {
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { docFlow: payloadDocFlow as typeof project.docFlow },
+      });
+    }
 
     // Create a snapshot record
     const snapshot = await prisma.docSnapshot.create({
@@ -149,6 +160,44 @@ export async function POST(request: NextRequest, { params }: Params) {
       where: { id: snapshot.id },
       data: { status: "COMPLETED" },
     });
+
+    // ── Reorder sections based on docFlow (skip for CUSTOM) ────────
+    if (docFlow !== "CUSTOM") {
+      const allSections = await prisma.section.findMany({
+        where: { projectId },
+        select: { id: true, title: true, orderIndex: true },
+      });
+
+      // Build a map of sectionTitle → filePath from the latest snapshot
+      const latestDocFiles = await prisma.docFile.findMany({
+        where: { snapshot: { projectId } },
+        select: { filePath: true, sectionId: true },
+        orderBy: { createdAt: "desc" },
+      });
+      const sectionFileMap = new Map<string, string>();
+      for (const df of latestDocFiles) {
+        if (df.sectionId && !sectionFileMap.has(df.sectionId)) {
+          sectionFileMap.set(df.sectionId, df.filePath);
+        }
+      }
+
+      // Sort sections
+      const sorted = [...allSections].sort((a, b) => {
+        const pathA = sectionFileMap.get(a.id) ?? a.title;
+        const pathB = sectionFileMap.get(b.id) ?? b.title;
+        return getDocFlowSortKey(pathA, docFlow) - getDocFlowSortKey(pathB, docFlow)
+          || pathA.localeCompare(pathB);
+      });
+
+      // Persist new order
+      await Promise.all(
+        sorted.map((s, i) =>
+          s.orderIndex !== i
+            ? prisma.section.update({ where: { id: s.id }, data: { orderIndex: i } })
+            : Promise.resolve()
+        )
+      );
+    }
 
     // Bump project version
     await prisma.project.update({
@@ -311,4 +360,102 @@ function convertSeeLinks(escapedHtml: string, localSymbols: Set<string>): string
       return `<strong style="color:#7c3aed">${escapeHtml(name)}</strong>`;
     }
   );
+}
+
+// ───────────────────────────────────────────────────
+// Documentation Flow sorting
+// ───────────────────────────────────────────────────
+
+/**
+ * Return a numeric sort priority for a file path based on the chosen DocFlow.
+ *
+ * CATEGORY:     Setup(0) → Frontend(1) → Backend(2) → Types/Utils(3) → Tests(4) → Other(5)
+ * CONNECTION:   Frontend pages/components(0) → Backend API routes(1) → Libs/services(2) → Config/other(3)
+ * MODULE:       Grouped by directory depth-1 as module proxy, then alphabetical
+ * ALPHABETICAL: Always 0 (pure alphabetical tiebreak)
+ */
+function getDocFlowSortKey(filePath: string, docFlow: string): number {
+  const p = filePath.toLowerCase().replace(/\\/g, "/");
+  const base = p.split("/").pop() ?? p;
+
+  if (docFlow === "ALPHABETICAL") return 0;
+
+  if (docFlow === "CONNECTION") {
+    // Frontend pages & components first
+    if (
+      p.startsWith("app/") && !p.includes("/api/") ||
+      p.startsWith("pages/") ||
+      p.includes("/components/") ||
+      p.includes("/hooks/") ||
+      p.includes("/context/") ||
+      p.includes("/ui/") ||
+      p.includes("/views/") ||
+      p.includes("/screens/")
+    ) return 0;
+    // Backend API routes
+    if (p.includes("/api/") || p.startsWith("api/") || p.includes("/routes/") || p.includes("/controllers/")) return 1;
+    // Libs, services, middleware, db
+    if (
+      p.startsWith("lib/") || p.startsWith("src/lib/") ||
+      p.includes("/services/") || p.includes("/middleware/") ||
+      p.includes("/db/") || p.includes("/database/") ||
+      p.startsWith("server/") || p.startsWith("src/server/")
+    ) return 2;
+    // Types and utils
+    if (p.includes("/types/") || p.includes("/utils/") || p.includes("/helpers/") || p.includes("/constants/")) return 3;
+    // Config files
+    if (
+      base === "package.json" || base.startsWith("tsconfig") || base.startsWith("next.config") ||
+      base === "schema.prisma" || p.includes("/prisma/") || base === "readme.md"
+    ) return 4;
+    // Tests
+    if (p.includes("/test") || p.includes("/__tests__") || base.includes(".test.") || base.includes(".spec.")) return 5;
+    return 6;
+  }
+
+  if (docFlow === "MODULE") {
+    // Group by first significant directory segment
+    const segments = p.split("/").filter(Boolean);
+    if (segments.length <= 1) return 99; // root-level files last
+    // Use first directory as a module grouping key (converted to char code sum for numeric sort)
+    const module = segments[0];
+    let hash = 0;
+    for (let i = 0; i < module.length; i++) hash += module.charCodeAt(i);
+    return hash;
+  }
+
+  // Default: CATEGORY flow
+  if (
+    base === "package.json" || base.startsWith("tsconfig") || base.startsWith("next.config") ||
+    base.startsWith("postcss.config") || base.startsWith("tailwind.config") ||
+    base.startsWith("eslint.config") || base.startsWith("vite.config") ||
+    base === "readme.md" || base === "schema.prisma" || p.includes("/prisma/")
+  ) return 0;
+
+  if (
+    (p.startsWith("app/") && !p.includes("/api/")) ||
+    p.startsWith("pages/") || p.includes("/components/") || p.includes("/hooks/") ||
+    p.includes("/context/") || p.includes("/ui/") || p.includes("/views/") ||
+    p.includes("/screens/") || p.includes("/features/")
+  ) return 1;
+
+  if (
+    p.includes("/api/") || p.startsWith("api/") || p.startsWith("lib/") ||
+    p.startsWith("src/lib/") || p.startsWith("server/") ||
+    p.includes("/services/") || p.includes("/middleware/") ||
+    p.includes("/controllers/") || p.includes("/routes/") ||
+    p.includes("/db/") || p.includes("/database/")
+  ) return 2;
+
+  if (
+    p.includes("/types/") || p.includes("/utils/") || p.includes("/helpers/") ||
+    p.includes("/constants/")
+  ) return 3;
+
+  if (
+    p.includes("/test") || p.includes("/__tests__") ||
+    base.includes(".test.") || base.includes(".spec.")
+  ) return 4;
+
+  return 5;
 }

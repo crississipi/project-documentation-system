@@ -18,6 +18,7 @@
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { execSync }                  from "child_process";
 import { join, relative, extname, basename } from "path";
+import { createInterface }           from "readline";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // .env file loader — reads .env from CWD into process.env (no dependencies)
@@ -67,6 +68,10 @@ const OPENROUTER_MODEL   = process.env.OPENROUTER_MODEL ?? "google/gemini-2.0-fl
 const AI_ENABLED         = Boolean(OPENROUTER_API_KEY);
 const AI_CONCURRENCY     = parseInt(process.env.AI_CONCURRENCY ?? "3", 10);
 
+// Documentation flow (can be set via env or chosen interactively)
+const VALID_DOC_FLOWS = ["CATEGORY", "CONNECTION", "MODULE", "ALPHABETICAL", "CUSTOM"];
+let DOC_FLOW = process.env.ONTAP_DOC_FLOW?.toUpperCase() ?? "";
+
 if (!API_KEY) {
   console.error("Error: ONTAP_API_KEY environment variable is not set.");
   console.error("Set it in your .env file or export it: export ONTAP_API_KEY=ontap_xxx");
@@ -81,6 +86,75 @@ if (AI_ENABLED) {
   console.log(`AI documentation enabled — model: ${OPENROUTER_MODEL}`);
 } else {
   console.log("AI documentation disabled (set OPENROUTER_API_KEY in .env to enable).");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Interactive CLI helpers
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Prompt the user with a question and return their input.
+ * If `validOptions` is provided, loops until a valid choice is made.
+ */
+function askQuestion(question, validOptions) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    const ask = () => {
+      rl.question(question, (answer) => {
+        const trimmed = answer.trim();
+        if (validOptions && !validOptions.includes(trimmed)) {
+          console.log(`  Invalid choice. Please enter one of: ${validOptions.join(", ")}`);
+          ask();
+        } else {
+          rl.close();
+          resolve(trimmed);
+        }
+      });
+    };
+    ask();
+  });
+}
+
+/**
+ * Display the documentation flow menu and return the user's choice.
+ */
+async function chooseDocFlow() {
+  console.log("\n📋 Documentation Flow — how should synced files be ordered?\n");
+  console.log("  1) CATEGORY      — Setup → Frontend → Backend → Testing → Other");
+  console.log("  2) CONNECTION    — Frontend → Backend API → Supporting Files");
+  console.log("  3) MODULE        — Grouped by feature / module (AI-arranged)");
+  console.log("  4) ALPHABETICAL  — A-Z by file path");
+  console.log("  5) CUSTOM        — Manual order (no auto-reordering on sync)");
+  console.log("");
+
+  const choice = await askQuestion("  Select flow [1-5] (default: 1): ", ["", "1", "2", "3", "4", "5"]);
+  const map = { "": "CATEGORY", "1": "CATEGORY", "2": "CONNECTION", "3": "MODULE", "4": "ALPHABETICAL", "5": "CUSTOM" };
+  return map[choice] ?? "CATEGORY";
+}
+
+/**
+ * Fetch the remaining token balance / credits from OpenRouter.
+ * Returns an object with limit, usage, remaining (or null on failure).
+ */
+async function fetchOpenRouterBalance() {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/auth/key", {
+      headers: { "Authorization": `Bearer ${OPENROUTER_API_KEY}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json.data;
+    if (!data) return null;
+    return {
+      label:     data.label ?? "Unknown",
+      limit:     data.limit ?? null,         // null = unlimited
+      usage:     data.usage ?? 0,
+      remaining: data.limit != null ? (data.limit - (data.usage ?? 0)) : null,
+      rateLimit: data.rate_limit ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -824,6 +898,50 @@ if (DRY_RUN) {
   process.exit(0);
 }
 
+// ── Documentation Flow selection ─────────────────────────────────────────────
+if (DOC_FLOW && VALID_DOC_FLOWS.includes(DOC_FLOW)) {
+  console.log(`\n📋 Documentation flow: ${DOC_FLOW} (from env)`);
+} else {
+  DOC_FLOW = await chooseDocFlow();
+  console.log(`\n📋 Documentation flow: ${DOC_FLOW}`);
+}
+
+// ── OpenRouter balance check ─────────────────────────────────────────────────
+if (AI_ENABLED) {
+  console.log("\n💳 Checking OpenRouter API balance…");
+  const balance = await fetchOpenRouterBalance();
+  if (balance) {
+    console.log(`   Key label   : ${balance.label}`);
+    if (balance.limit != null) {
+      console.log(`   Credit limit: $${(balance.limit).toFixed(4)}`);
+      console.log(`   Used        : $${(balance.usage).toFixed(4)}`);
+      console.log(`   Remaining   : $${(balance.remaining).toFixed(4)}`);
+      if (balance.remaining <= 0) {
+        console.error("\n✗ No credits remaining on OpenRouter. Add credits or disable AI (unset OPENROUTER_API_KEY).");
+        process.exit(1);
+      }
+      if (balance.remaining < 0.10) {
+        console.warn("   ⚠ Low balance — AI generation may be interrupted if credits run out.");
+      }
+    } else {
+      console.log(`   Credit limit: Unlimited`);
+      console.log(`   Used        : $${(balance.usage).toFixed(4)}`);
+    }
+    if (balance.rateLimit) {
+      console.log(`   Rate limit  : ${balance.rateLimit.requests} req/${balance.rateLimit.interval}`);
+    }
+
+    const proceed = await askQuestion("\n  Proceed with AI-powered sync? [Y/n]: ", ["", "y", "Y", "n", "N", "yes", "no"]);
+    if (proceed.toLowerCase() === "n" || proceed.toLowerCase() === "no") {
+      console.log("  Aborted by user.");
+      process.exit(0);
+    }
+  } else {
+    console.log("   Could not fetch balance (key may use free tier or API unavailable).");
+    console.log("   Proceeding anyway…");
+  }
+}
+
 // ── Phase 1: Read files & extract symbols ────────────────────────────────────
 console.log("\n📂 Phase 1: Extracting symbols…");
 const allFileData = filePaths.map((absPath) => {
@@ -890,7 +1008,7 @@ try {
   branch     = execSync("git branch --show-current", { stdio: ["pipe", "pipe", "ignore"] }).toString().trim();
 } catch { /* not a git repo */ }
 
-console.log(`   Sending ${files.length} files to project ${PROJECT_ID}…`);
+console.log(`   Sending ${files.length} files to project ${PROJECT_ID} (flow: ${DOC_FLOW})…`);
 
 const res = await fetch(`${API_BASE}/api/v1/projects/${PROJECT_ID}/sync`, {
   method: "POST",
@@ -900,6 +1018,7 @@ const res = await fetch(`${API_BASE}/api/v1/projects/${PROJECT_ID}/sync`, {
   },
   body: JSON.stringify({
     files,
+    docFlow: DOC_FLOW,
     ...(commitHash && { commitHash }),
     ...(branch     && { branch }),
   }),

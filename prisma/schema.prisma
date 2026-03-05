@@ -86,6 +86,7 @@ model Project {
   visibility        ProjectVisibility  @default(PRIVATE)
   docType           String             @default("Technical Documentation")
   paperSize         PaperSize          @default(A4)
+  docFlow           DocFlow            @default(CATEGORY)
   authorId          String
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -112,6 +113,15 @@ enum PaperSize {
   A4
   LEGAL
   LONG
+}
+
+// Documentation Flow — how synced files are ordered in the project
+enum DocFlow {
+  CATEGORY      // Setup → Frontend → Backend → Testing → Other
+  CONNECTION    // Grouped by dependency chain: Frontend → Backend API → Support
+  MODULE        // Grouped by feature / module (AI-arranged)
+  ALPHABETICAL  // A-Z by file path
+  CUSTOM        // User-defined manual order (no auto-reordering on sync)
 }
 
 // ─────────────────────────────────────────────

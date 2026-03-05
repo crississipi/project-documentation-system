@@ -12,7 +12,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { ExportPDFButton } from "./ExportPDFButton";
 import { ShareModal } from "./ShareModal";
 import { ProjectInfoModal } from "./ProjectInfoModal";
-import type { DocumentationPageData, SectionWithBlocks, PaperSize } from "@/types";
+import type { DocumentationPageData, SectionWithBlocks, PaperSize, DocFlow } from "@/types";
 import { cn } from "@/lib/cn";
 import { apiFetch } from "@/lib/apiFetch";
 
@@ -344,6 +344,7 @@ export function DocumentationView({ data: initialData }: DocumentationViewProps)
           project={project}
           onClose={() => setShowInfo(false)}
           onVisibilityChange={(visibility) => setProject((prev) => ({ ...prev, visibility }))}
+          onDocFlowChange={(docFlow: DocFlow) => setProject((prev) => ({ ...prev, docFlow }))}
           onDelete={() => router.push("/dashboard")}
         />
       )}

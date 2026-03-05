@@ -3,6 +3,7 @@
 export type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
 export type ProjectVisibility = "PRIVATE" | "PUBLIC";
 export type PaperSize = "A4" | "LEGAL" | "LONG";
+export type DocFlow = "CATEGORY" | "CONNECTION" | "MODULE" | "ALPHABETICAL" | "CUSTOM";
 export type BlockType = "TEXT" | "CODE" | "IMAGE" | "TABLE" | "DIVIDER";
 export type CollaboratorRole = "VIEWER" | "COMMENTER" | "EDITOR";
 export type CollaboratorStatus = "PENDING" | "ACCEPTED";
@@ -95,6 +96,7 @@ export interface ProjectSummary {
   visibility: ProjectVisibility;
   docType: string;
   paperSize: PaperSize;
+  docFlow: DocFlow;
   authorId: string;
   authorName: string;
   createdAt: string;
@@ -111,6 +113,7 @@ export interface CreateProjectInput {
   visibility: ProjectVisibility;
   docType: string;
   paperSize: PaperSize;
+  docFlow: DocFlow;
 }
 
 // ─── Sections ────────────────────────────────────
@@ -249,6 +252,7 @@ export interface SyncPayload {
   files: SyncFilePayload[];
   commitHash?: string;
   branch?: string;
+  docFlow?: DocFlow;
 }
 
 export interface SyncResult {

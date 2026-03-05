@@ -80,6 +80,7 @@ export default function ProjectPage() {
             visibility: project.visibility,
             docType: project.docType,
             paperSize: project.paperSize,
+            docFlow: project.docFlow,
             authorId: project.authorId,
             authorName: project.authorName,
             createdAt: project.createdAt,

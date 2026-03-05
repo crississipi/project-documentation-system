@@ -141,7 +141,12 @@ Copy the UUID from the URL.
   "commitHash": "a1b2c3d4",
 
   // Optional: git branch name
-  "branch": "main"
+  "branch": "main",
+
+  // Optional: documentation flow — controls how sections are ordered
+  //   If provided, overrides the project's stored setting.
+  //   Values: "CATEGORY" | "CONNECTION" | "MODULE" | "ALPHABETICAL" | "CUSTOM"
+  "docFlow": "CATEGORY"
 }
 ```
 
@@ -151,6 +156,34 @@ The `kind` field is a free-form string. Recommended values:
 
 `function` · `class` · `method` · `interface` · `type` · `enum` · `constant` ·
 `variable` · `constructor` · `property` · `module` · `namespace`
+
+### Documentation Flow
+
+The `docFlow` field controls how the server orders sections when files are
+synced by you or your collaborators. Available flows:
+
+| Flow | Description |
+|------|-------------|
+| `CATEGORY` | **Setup** → **Frontend** → **Backend** → **Testing** → **Other** (default) |
+| `CONNECTION` | **Frontend pages/components** → **Backend API routes** → **Libs/services** → **Config** |
+| `MODULE` | Files grouped by **feature / module directory** (AI-arranged) |
+| `ALPHABETICAL` | Sorted **A → Z** by file path |
+| `CUSTOM` | **No auto-reordering** — sections stay in the order they were created or manually arranged |
+
+**Multi-user syncing:** When collaborators sync different parts of the project
+(e.g. one person syncs backend, another syncs frontend), the server merges all
+sections and reorders them according to the project's `docFlow` setting.
+Set `docFlow` in the payload to override, or configure it in the project
+settings UI (Project Info → Documentation Flow).
+
+**Set via environment variable:**
+
+```bash
+ONTAP_DOC_FLOW=CONNECTION node sync-docs.mjs
+```
+
+If `ONTAP_DOC_FLOW` is not set, the CLI will show an interactive menu to
+choose a flow before syncing.
 
 ---
 
@@ -196,7 +229,28 @@ The script uses regex-based extraction to detect:
 | `OPENROUTER_API_KEY` | For AI | — | Your OpenRouter API key (get one at [openrouter.ai/keys](https://openrouter.ai/keys)) |
 | `OPENROUTER_MODEL` | No | `google/gemini-2.0-flash-001` | Any model available on OpenRouter |
 | `AI_CONCURRENCY` | No | `3` | Number of parallel AI requests |
+| `ONTAP_DOC_FLOW` | No | Interactive | Documentation flow: `CATEGORY`, `CONNECTION`, `MODULE`, `ALPHABETICAL`, `CUSTOM` |
 | `DRY_RUN` | No | — | Set to `1` to preview without syncing |
+
+### Credit / Token Balance Check
+
+When AI documentation is enabled (`OPENROUTER_API_KEY` is set), the sync
+script automatically checks your OpenRouter credit balance before generating
+docstrings. You'll see output like:
+
+```
+💳 Checking OpenRouter API balance…
+   Key label   : My Dev Key
+   Credit limit: $10.0000
+   Used        : $1.2345
+   Remaining   : $8.7655
+
+  Proceed with AI-powered sync? [Y/n]:
+```
+
+- If remaining credits are **$0 or less**, the script aborts.
+- If remaining credits are **below $0.10**, a low-balance warning is shown.
+- Press **Enter** or type **Y** to proceed, or **N** to abort.
 
 ### Cross-Reference System
 

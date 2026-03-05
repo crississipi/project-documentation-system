@@ -14,23 +14,42 @@ import {
   BiFolder,
   BiTrash,
 } from "react-icons/bi";
-import type { ProjectSummary, ProjectVisibility } from "@/types";
+import type { ProjectSummary, ProjectVisibility, DocFlow } from "@/types";
 import { apiFetch } from "@/lib/apiFetch";
+
+const DOC_FLOW_LABELS: Record<DocFlow, string> = {
+  CATEGORY: "By Category",
+  CONNECTION: "By Connection",
+  MODULE: "By Module (AI)",
+  ALPHABETICAL: "Alphabetical",
+  CUSTOM: "Custom (manual)",
+};
+
+const DOC_FLOW_DESCRIPTIONS: Record<DocFlow, string> = {
+  CATEGORY: "Setup → Frontend → Backend → Testing → Other",
+  CONNECTION: "Frontend → Backend API → Supporting Files",
+  MODULE: "Files grouped by feature / module (AI-arranged)",
+  ALPHABETICAL: "A-Z by file path",
+  CUSTOM: "No auto-reordering on sync — manual order preserved",
+};
 
 interface ProjectInfoModalProps {
   project: ProjectSummary;
   onClose: () => void;
   onVisibilityChange: (visibility: ProjectVisibility) => void;
+  onDocFlowChange?: (docFlow: DocFlow) => void;
   onDelete?: () => void;
 }
 
-export function ProjectInfoModal({ project, onClose, onVisibilityChange, onDelete }: ProjectInfoModalProps) {
+export function ProjectInfoModal({ project, onClose, onVisibilityChange, onDocFlowChange, onDelete }: ProjectInfoModalProps) {
   const [copied, setCopied] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [changingDocFlow, setChangingDocFlow] = useState(false);
+  const [docFlowError, setDocFlowError] = useState<string | null>(null);
 
   // ─── Copy project ID ──────────────────────────────
   const handleCopyId = async () => {
@@ -92,6 +111,30 @@ export function ProjectInfoModal({ project, onClose, onVisibilityChange, onDelet
       setVisibilityError("Network error. Please try again.");
     } finally {
       setTogglingVisibility(false);
+    }
+  };
+
+  // ─── Change documentation flow ──────────────────
+  const handleDocFlowChange = async (newFlow: DocFlow) => {
+    if (newFlow === project.docFlow) return;
+    setChangingDocFlow(true);
+    setDocFlowError(null);
+    try {
+      const res = await apiFetch(`/api/projects/${project.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ docFlow: newFlow }),
+      });
+      if (res.ok) {
+        onDocFlowChange?.(newFlow);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setDocFlowError(json.message ?? "Failed to update documentation flow.");
+      }
+    } catch {
+      setDocFlowError("Network error. Please try again.");
+    } finally {
+      setChangingDocFlow(false);
     }
   };
 
@@ -208,6 +251,50 @@ export function ProjectInfoModal({ project, onClose, onVisibilityChange, onDelet
             {visibilityError && (
               <p className="mt-1.5 text-xs text-red-500">{visibilityError}</p>
             )}
+          </div>
+
+          {/* ── Documentation Flow ─────────────────────── */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Documentation Flow</p>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+              {(Object.keys(DOC_FLOW_LABELS) as DocFlow[]).map((flow) => (
+                <button
+                  key={flow}
+                  type="button"
+                  disabled={changingDocFlow}
+                  onClick={() => handleDocFlowChange(flow)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors border-b border-slate-100 last:border-b-0 ${
+                    project.docFlow === flow
+                      ? "bg-violet-50"
+                      : "hover:bg-slate-100"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <span className={`w-3 h-3 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                    project.docFlow === flow ? "border-violet-600" : "border-slate-300"
+                  }`}>
+                    {project.docFlow === flow && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-600" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-slate-800">{DOC_FLOW_LABELS[flow]}</p>
+                    <p className="text-[10px] text-slate-400 leading-tight">{DOC_FLOW_DESCRIPTIONS[flow]}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {changingDocFlow && (
+              <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1">
+                <span className="w-3 h-3 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
+                Updating flow…
+              </p>
+            )}
+            {docFlowError && (
+              <p className="mt-1.5 text-xs text-red-500">{docFlowError}</p>
+            )}
+            <p className="mt-2 text-[10px] text-slate-400 leading-relaxed">
+              Controls how synced files are ordered in this project. Changes take effect on the next sync.
+            </p>
           </div>
 
           {/* ── Details ────────────────────────────────── */}

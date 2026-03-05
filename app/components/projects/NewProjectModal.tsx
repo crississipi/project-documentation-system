@@ -12,8 +12,9 @@ import { apiFetch } from "@/lib/apiFetch";
 import { Button } from "@/app/components/ui/Button";
 import type { ProjectSummary } from "@/types";
 
-const formSchema = createProjectSchema.omit({ tags: true }).extend({
+const formSchema = createProjectSchema.omit({ tags: true, docFlow: true }).extend({
   tagsArray: z.array(z.string()),
+  docFlow: z.enum(["CATEGORY", "CONNECTION", "MODULE", "ALPHABETICAL", "CUSTOM"]),
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -26,6 +27,14 @@ const CATEGORIES = [
 const DOC_TYPES = [
   "Technical Documentation", "API Reference", "User Guide",
   "Architecture Overview", "Product Specification", "Runbook", "Other",
+];
+
+const DOC_FLOWS = [
+  { value: "CATEGORY", label: "By Category — Setup → Frontend → Backend → Testing → Other" },
+  { value: "CONNECTION", label: "By Connection — Frontend → Backend API → Supporting Files" },
+  { value: "MODULE", label: "By Module — Grouped by feature (AI-arranged)" },
+  { value: "ALPHABETICAL", label: "Alphabetical — A-Z by file path" },
+  { value: "CUSTOM", label: "Custom — Manual order (no auto-reordering on sync)" },
 ];
 
 interface NewProjectModalProps {
@@ -51,6 +60,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
       visibility: "PRIVATE",
       paperSize: "A4",
       docType: "Technical Documentation",
+      docFlow: "CATEGORY",
       category: "Web Application",
       tagsArray: [],
     },
@@ -83,6 +93,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
         visibility: data.visibility,
         docType: data.docType,
         paperSize: data.paperSize,
+        docFlow: data.docFlow,
       }),
     });
     const json = await res.json();
@@ -113,6 +124,12 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
             {...register("docType")}
           />
         </div>
+
+        <Select
+          label="Documentation Flow"
+          options={DOC_FLOWS}
+          {...register("docFlow")}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
