@@ -16,23 +16,26 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20")));
     const skip = (page - 1) * limit;
 
-    const filterClause =
-      filter === "verified"    ? { isEmailVerified: true }
-      : filter === "unverified"  ? { isEmailVerified: false }
-      : filter === "disabled"    ? { isDisabled: true }
-      : filter === "admin"       ? { role: "ADMIN" as const }
-      : filter === "superadmin"  ? { role: "SUPER_ADMIN" as const }
+    // When not explicitly requesting disabled accounts, always exclude them from
+    // the active list so a disabled user never shows in Active Users.
+    const isDisabledFilter = filter === "disabled" ? { isDisabled: true } : { isDisabled: false };
+
+    const extraFilter =
+      filter === "verified"   ? { isEmailVerified: true }
+      : filter === "unverified" ? { isEmailVerified: false }
+      : filter === "admin"      ? { role: "ADMIN" as const }
+      : filter === "superadmin" ? { role: "SUPER_ADMIN" as const }
       : {};
 
     const searchClause = search
       ? { OR: [{ name: { contains: search } }, { email: { contains: search } }] }
       : {};
 
-    const where = Object.keys(filterClause).length > 0 && search
-      ? { AND: [filterClause, searchClause] }
-      : Object.keys(filterClause).length > 0
-      ? filterClause
-      : searchClause;
+    const andClauses: object[] = [isDisabledFilter];
+    if (Object.keys(extraFilter).length > 0) andClauses.push(extraFilter);
+    if (search) andClauses.push(searchClause);
+
+    const where = andClauses.length === 1 ? andClauses[0] : { AND: andClauses };
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({

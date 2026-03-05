@@ -655,7 +655,10 @@ export default function AdminDashboard() {
       });
       const json = await res.json();
       if (res.ok) {
-        setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, isDisabled: !user.isDisabled } : u));
+        // Remove the user from the current list — they belong to the other sub-tab now
+        setUsers((prev) => prev.filter((u) => u.id !== user.id));
+        // Keep stats badge accurate
+        fetchStats();
         showToast(`${user.name} ${user.isDisabled ? "enabled" : "disabled"} successfully.`, "success");
       } else { showToast(json.error ?? "Failed", "error"); }
     } catch { showToast("Network error", "error"); } finally { setActionLoadingId(null); }
@@ -677,7 +680,13 @@ export default function AdminDashboard() {
   };
 
   const handleUserUpdated = (userId: string, changes: Partial<AdminUser>) => {
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, ...changes } : u));
+    if ("isDisabled" in changes) {
+      // User moved between Active / Disabled sub-tabs — remove from current list
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      fetchStats();
+    } else {
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, ...changes } : u));
+    }
   };
 
   const goToUsersWithFilter = (f: string) => {
