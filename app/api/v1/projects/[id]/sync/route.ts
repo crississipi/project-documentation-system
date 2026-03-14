@@ -318,11 +318,14 @@ function fileToHtml(file: SyncFilePayload): string {
         Math.min(lines.length, sym.endLine)
       );
       if (bodyLines.length > 0 && bodyLines.length <= 100) {
-        parts.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(bodyLines.join("\n"))}</code></pre>`);
+        const rawCode = bodyLines.join("\n");
+        const displayCode = stripLeadingCommentsForDisplay(rawCode, lang);
+        parts.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(displayCode || rawCode)}</code></pre>`);
       } else if (bodyLines.length > 100) {
         // Truncate very long bodies
         const truncated = bodyLines.slice(0, 100).join("\n") + "\n// ... truncated";
-        parts.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(truncated)}</code></pre>`);
+        const displayCode = stripLeadingCommentsForDisplay(truncated, lang);
+        parts.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(displayCode || truncated)}</code></pre>`);
       }
     }
   } else {
@@ -330,10 +333,75 @@ function fileToHtml(file: SyncFilePayload): string {
     const content = file.content.length > 50000
       ? file.content.slice(0, 50000) + "\n// ... truncated (file too large)"
       : file.content;
-    parts.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(content)}</code></pre>`);
+    const displayCode = stripLeadingCommentsForDisplay(content, lang);
+    parts.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(displayCode || content)}</code></pre>`);
   }
 
   return parts.join("");
+}
+
+/**
+ * Remove only leading comment headers before rendering code blocks in docs.
+ * This keeps the code display concise while preserving raw source for AI analysis.
+ */
+function stripLeadingCommentsForDisplay(code: string, language: string): string {
+  const lines = code.split("\n");
+  let i = 0;
+
+  const hashCommentLangs = new Set(["python", "bash", "yaml", "toml", "ini", "ruby"]);
+  const slashCommentLangs = new Set([
+    "typescript", "javascript", "java", "go", "rust", "c", "cpp", "csharp",
+    "php", "kotlin", "scala", "swift", "css", "scss", "less", "sql", "json",
+  ]);
+
+  while (i < lines.length) {
+    const trimmed = lines[i].trimStart();
+
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    if (slashCommentLangs.has(language) && trimmed.startsWith("//")) {
+      i++;
+      continue;
+    }
+    if (slashCommentLangs.has(language) && trimmed.startsWith("/*")) {
+      i++;
+      while (i < lines.length && !lines[i].includes("*/")) i++;
+      if (i < lines.length) i++;
+      continue;
+    }
+    if (hashCommentLangs.has(language) && trimmed.startsWith("#")) {
+      i++;
+      continue;
+    }
+    if (language === "sql" && trimmed.startsWith("--")) {
+      i++;
+      continue;
+    }
+    if ((language === "html" || language === "xml") && trimmed.startsWith("<!--")) {
+      i++;
+      while (i < lines.length && !lines[i].includes("-->")) i++;
+      if (i < lines.length) i++;
+      continue;
+    }
+    if (language === "python" && (trimmed.startsWith('"""') || trimmed.startsWith("'''"))) {
+      const quote = trimmed.startsWith('"""') ? '"""' : "'''";
+      if (trimmed.slice(3).includes(quote)) {
+        i++;
+      } else {
+        i++;
+        while (i < lines.length && !lines[i].includes(quote)) i++;
+        if (i < lines.length) i++;
+      }
+      continue;
+    }
+
+    break;
+  }
+
+  return lines.slice(i).join("\n");
 }
 
 /**

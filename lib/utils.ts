@@ -34,6 +34,19 @@ export function serverError(error = "Internal server error"): NextResponse<ApiRe
   return NextResponse.json({ success: false, error }, { status: 500 });
 }
 
+export function corsOptions(): NextResponse {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, Cookie",
+      Vary: "Origin",
+    },
+  });
+}
+
 // ─── Tags helpers ────────────────────────────────
 export function parseTags(raw: string | null | undefined): string[] {
   if (!raw) return [];
