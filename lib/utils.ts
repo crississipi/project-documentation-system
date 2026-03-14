@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ApiResponse } from "@/types";
 
-const CORS_ALLOWED_ORIGINS = new Set([
-  "https://lightyellow-newt-377914.hostingersite.com",
-  "http://localhost:3000",
-]);
-
 // ─── API Response helpers ────────────────────────
 export function ok<T>(data: T, message?: string): NextResponse<ApiResponse<T>> {
   return NextResponse.json({ success: true, message, data }, { status: 200 });
@@ -37,24 +32,6 @@ export function conflict(error: string): NextResponse<ApiResponse> {
 
 export function serverError(error = "Internal server error"): NextResponse<ApiResponse> {
   return NextResponse.json({ success: false, error }, { status: 500 });
-}
-
-export function corsOptions(origin?: string | null): NextResponse {
-  const response = new NextResponse(null, { status: 204 });
-  response.headers.set(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-  );
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
-  response.headers.set("Access-Control-Max-Age", "86400");
-  response.headers.set("Vary", "Origin");
-
-  if (origin && CORS_ALLOWED_ORIGINS.has(origin)) {
-    response.headers.set("Access-Control-Allow-Origin", origin);
-    response.headers.set("Access-Control-Allow-Credentials", "true");
-  }
-
-  return response;
 }
 
 // ─── Tags helpers ────────────────────────────────

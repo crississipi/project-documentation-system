@@ -12,6 +12,7 @@ import type { SignupFormData } from "@/types";
 import { useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 
+// Creates a new account, then routes users into the email verification flow.
 export function SignupForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState("");
@@ -35,6 +36,7 @@ export function SignupForm() {
     });
     const json = await res.json();
     if (!res.ok) {
+      // 409 means account exists; guide user to sign in or verify instead.
       if (res.status === 409) {
         setConflictEmail(data.email);
       } else {
@@ -42,6 +44,7 @@ export function SignupForm() {
       }
       return;
     }
+    // Registration success still requires PIN verification before full access.
     router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
   };
 
@@ -70,6 +73,7 @@ export function SignupForm() {
           )}
 
           {conflictEmail && (
+            // Recovery path for already-registered emails.
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
               An account with that email already exists.
               <div className="mt-2 flex flex-wrap gap-3">

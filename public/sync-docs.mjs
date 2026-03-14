@@ -24,6 +24,10 @@ import { createInterface }           from "readline";
 // .env file loader — reads .env from CWD into process.env (no dependencies)
 // ══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Load .env values from the provided directory into process.env.
+ * Existing environment variables are preserved so shell-provided values win.
+ */
 function loadEnvFile(dir) {
   const envPath = join(dir, ".env");
   if (!existsSync(envPath)) return;
@@ -133,8 +137,8 @@ async function chooseDocFlow() {
 }
 
 /**
- * Fetch the remaining token balance / credits from OpenRouter.
- * Returns an object with limit, usage, remaining (or null on failure).
+ * Fetch available OpenRouter credit information for the configured API key.
+ * Returns null when the API is unreachable or the response is not usable.
  */
 async function fetchOpenRouterBalance() {
   try {
@@ -204,6 +208,10 @@ const EXTRACTABLE_EXTENSIONS = new Set([
   ".cs", ".cpp", ".c", ".h", ".hpp", ".php", ".rb",
 ]);
 
+/**
+ * Mask `.env*` values before sync so secret keys are never sent upstream.
+ * Example: `API_KEY=abc` becomes `API_KEY=<VALUE>`.
+ */
 function maskEnvContent(content) {
   return content.split("\n").map((line) => {
     const t = line.trimStart();
@@ -212,6 +220,10 @@ function maskEnvContent(content) {
   }).join("\n");
 }
 
+/**
+ * Recursively collect files that should be documented/synced.
+ * Uses directory and extension allow/ignore rules defined above.
+ */
 function collectFiles(dir) {
   const results = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -259,6 +271,10 @@ function extractSymbols(content, filePath) {
 
 // ── JS / TS ──────────────────────────────────────────────────────────────────
 
+/**
+ * Extract top-level JS/TS symbols using pragmatic regex patterns.
+ * Includes imports, functions, classes, TS types/interfaces/enums, and variables.
+ */
 function extractJsTs(lines, ext) {
   const symbols = [];
   const isTS = [".ts", ".tsx", ".mts", ".cts"].includes(ext);
@@ -697,6 +713,10 @@ function sortFilesByCategory(fileDataArray) {
  * Build a project-wide symbol index for cross-referencing.
  * Maps symbol name → { filePath, kind }.
  */
+/**
+ * Build a project-wide lookup map used for [see: ...] link generation.
+ * Only non-import symbols are indexed to reduce noise.
+ */
 function buildSymbolIndex(allFileSymbols) {
   const index = new Map();
   for (const { filePath, symbols } of allFileSymbols) {
@@ -714,6 +734,10 @@ function buildSymbolIndex(allFileSymbols) {
  * Find referenced symbols inside a symbol's body.
  * Returns array of { name, filePath, kind } for symbols defined elsewhere.
  */
+/**
+ * Detect references to known project symbols inside a symbol body.
+ * This helps AI descriptions point to related functions/classes across files.
+ */
 function findReferences(symbolBody, symbolName, symbolIndex) {
   const refs = [];
   const seen = new Set();
@@ -728,6 +752,7 @@ function findReferences(symbolBody, symbolName, symbolIndex) {
   return refs;
 }
 
+/** Escape regex metacharacters so symbol names can be matched safely. */
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -819,8 +844,8 @@ Respond with ONLY the plain description text — no JSON, no markdown.`;
 }
 
 /**
- * Generate AI docstrings for all symbols in a file with concurrency control.
- * Tracks which symbols have been documented to avoid redundant explanations.
+ * Generate AI docstrings for all symbols in one file.
+ * Imports can be batched; other symbols are documented with dedup-aware context.
  */
 async function documentSymbolsWithAI(symbols, fileContent, filePath, symbolIndex, globalDocumented) {
   // If file has many imports, group them into one AI call instead of N calls
@@ -874,7 +899,10 @@ async function documentSymbolsWithAI(symbols, fileContent, filePath, symbolIndex
   await runConcurrent(tasks, AI_CONCURRENCY);
 }
 
-/** Run async tasks with a concurrency limit. */
+/**
+ * Run async tasks with a bounded concurrency window.
+ * Preserves throughput while preventing API bursts and rate-limit spikes.
+ */
 async function runConcurrent(tasks, limit) {
   const executing = new Set();
   for (const task of tasks) {

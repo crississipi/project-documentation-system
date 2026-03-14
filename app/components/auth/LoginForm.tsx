@@ -16,6 +16,7 @@ import { apiFetch } from "@/lib/apiFetch";
 
 const UNVERIFIED_MSG = "verify your email";
 
+// Handles credential login, optional OTP challenge, and post-login redirect.
 export function LoginForm() {
   const { login, refresh } = useAuth();
   const router = useRouter();
@@ -41,11 +42,13 @@ export function LoginForm() {
     const result = await login(data.email, data.password);
     if (result.error) {
       setServerError(result.error);
+      // Offer verification resend actions when login fails due to unverified email.
       if (result.error.toLowerCase().includes(UNVERIFIED_MSG)) {
         setResendEmail(data.email);
       }
       return;
     }
+    // Show OTP modal when backend requires second factor before session is finalized.
     if (result.requiresOtp && result.preAuthToken) {
       setOtpPreAuthToken(result.preAuthToken);
       return;
@@ -102,6 +105,7 @@ export function LoginForm() {
             </div>
 
             {serverError && (
+              // Login error box can include email verification recovery actions.
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
                 {serverError}
                 {resendEmail && (

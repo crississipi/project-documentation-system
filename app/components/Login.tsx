@@ -1,13 +1,18 @@
 import React from 'react'
 
+// Presentational login overlay with floating-label inputs.
+// This component currently renders UI only (no submit/auth handler yet).
 const Login = () => {
   return (
     <div className='h-full w-full fixed flex items-center justify-center z-50 backdrop-blur-3xl overflow-hidden'>
-      {/* Noise texture overlay */}
+      {/* Decorative grain layer to add depth behind the login card. */}
       <div className='absolute inset-0 z-0 bg-noise opacity-[0.03] pointer-events-none'></div>
       <div className='h-auto w-full max-w-xs sm:max-w-sm md:max-w-md mx-4 rounded-2xl bg-white z-10 flex flex-col items-center p-5 sm:p-6'>
+        {/* Reserved area for branding/logo or illustration at the top of the card. */}
         <div className='h-32 w-full border'></div>
+        {/* Form shell is static for now; replace action="#" with real submit flow when wiring auth. */}
         <form action="#" className='w-full flex flex-col items-center my-10'>
+            {/* Email field using peer classes so the label floats on focus/value. */}
             <div className='group w-full h-max rounded-lg border border-gray-300 focus-within:border-violet-600 has-[input:not(:placeholder-shown)]:border-violet-600 py-3 px-5 relative transition-colors'>
                 <input 
                   type="email" 
@@ -25,6 +30,7 @@ const Login = () => {
                   Email Address
                 </label>
             </div>
+            {/* Password field mirrors email behavior for consistent UX. */}
             <div className='group w-full h-max rounded-lg border border-gray-300 focus-within:border-violet-600 has-[input:not(:placeholder-shown)]:border-violet-600 py-3 px-5 relative mt-5 transition-colors'>
                 <input 
                   type="password" 
@@ -42,6 +48,7 @@ const Login = () => {
                   Password
                 </label>
             </div>
+            {/* UX shortcut for password recovery; should navigate to forgot-password route. */}
             <button type="button" className='ml-auto mt-3 hover:text-violet-600'>Forgot Password</button>
         </form>
       </div>

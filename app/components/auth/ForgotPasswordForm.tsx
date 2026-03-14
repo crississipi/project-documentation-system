@@ -13,6 +13,7 @@ import { z } from "zod";
 
 type FormData = z.infer<typeof forgotPasswordSchema>;
 
+// Requests a password-reset email and toggles the success confirmation UI.
 export function ForgotPasswordForm() {
   const [sent, setSent] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -32,6 +33,7 @@ export function ForgotPasswordForm() {
     });
     const json = await res.json();
     if (!res.ok) { setServerError(json.error ?? "Something went wrong"); return; }
+    // Show confirmation view after request succeeds.
     setSent(true);
   };
 
@@ -45,6 +47,7 @@ export function ForgotPasswordForm() {
         </div>
 
         {sent ? (
+          // Success state avoids exposing whether the email exists in the system.
           <div className="text-center">
             <p className="text-slate-600 text-sm mb-4">
               If that email is registered, a reset link has been sent. Check your inbox.
